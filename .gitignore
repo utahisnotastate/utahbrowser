@@ -1,0 +1,59 @@
+# --- Rust / Cargo ---
+/target/
+**/*.rs.bk
+*.pdb
+
+# --- Utah Browser build outputs ---
+/dist/
+/evolution/proposals/
+
+# --- Local env & secrets (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.toml
+utah.env.ps1
+# Keep example env tracked
+!.env.example
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# --- Editors & IDEs ---
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# --- Logs & diagnostics ---
+*.log
+health-report.json
+
+# --- Package managers (if added later) ---
+node_modules/
+package-lock.json
+
+# --- Test / coverage ---
+coverage/
+*.profraw
+
+# --- Windows installer scratch ---
+*.msi
+*.msm
+*.msp

@@ -1,0 +1,38 @@
+# Utah Browser — local-only configuration (no telemetry, no cloud APIs)
+
+[knowledge]
+# Notebook corpus for Truth Engine (override with UTAH_KNOWLEDGE_PATH)
+path = "C:/code/utahisnotastate"
+extensions = ["md", "txt", "markdown", "pdf"]
+
+[ollama]
+host = "http://127.0.0.1:11434"
+embed_model = "nomic-embed-text"
+chat_model = "llama3.2"
+timeout_secs = 120
+
+[qdrant]
+url = "http://127.0.0.1:6333"
+collection = "utah_notebooks"
+vector_size = 768
+
+[truth]
+# Cosine similarity below this threshold flags a discrepancy
+similarity_threshold = 0.72
+chunk_chars = 800
+chunk_overlap = 120
+max_context_chunks = 6
+
+[audio]
+enabled = true
+sample_rate_hint = 16000
+
+[evolution]
+enabled = true
+watch_paths = ["C:/code/utahbrowser"]
+debounce_ms = 2000
+proposals_dir = "evolution/proposals"
+
+[ui]
+start_url = "https://example.com"
+window_title = "Utah Browser // V1.0-GENESIS"

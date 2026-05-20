@@ -1,0 +1,325 @@
+/**
+ * Utah.css — responsive, zero-UI-logic design tokens & components.
+ * Fluid across any viewport: phone → ultrawide, portrait/landscape, zoom levels.
+ */
+
+:root {
+  /* Palette */
+  --utah-bg: #0b0f14;
+  --utah-surface: #121a24;
+  --utah-border: #243044;
+  --utah-text: #e8eef7;
+  --utah-muted: #8fa3bc;
+  --utah-accent: #3d9eff;
+  --utah-warn: #ff6b4a;
+  --utah-ok: #3dd68c;
+  --utah-glow: rgba(61, 158, 255, 0.25);
+
+  /* Fluid spacing & type (resolution-independent) */
+  --utah-space-xs: clamp(0.25rem, 0.5vw, 0.5rem);
+  --utah-space-sm: clamp(0.5rem, 1.2vw, 0.75rem);
+  --utah-space-md: clamp(0.75rem, 2vw, 1.25rem);
+  --utah-space-lg: clamp(1rem, 3vw, 1.75rem);
+  --utah-font-xs: clamp(0.65rem, 0.6rem + 0.25vw, 0.75rem);
+  --utah-font-sm: clamp(0.8rem, 0.75rem + 0.3vw, 0.9rem);
+  --utah-font-base: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --utah-font-lg: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+  --utah-radius: clamp(4px, 0.5vw, 8px);
+  --utah-touch: max(2.75rem, 44px);
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  overflow: hidden;
+  background: var(--utah-bg);
+  color: var(--utah-text);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: var(--utah-font-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg,
+video,
+iframe {
+  max-width: 100%;
+}
+
+.utah-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Chrome ---------- */
+
+.utah-chrome {
+  flex-shrink: 0;
+  padding: var(--utah-space-sm) var(--utah-space-md);
+  padding-top: max(var(--utah-space-sm), env(safe-area-inset-top, 0px));
+  padding-left: max(var(--utah-space-md), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--utah-space-md), env(safe-area-inset-right, 0px));
+  background: linear-gradient(180deg, #141c28 0%, var(--utah-surface) 100%);
+  border-bottom: 1px solid var(--utah-border);
+  container-type: inline-size;
+  container-name: chrome;
+  transform: translateZ(0);
+}
+
+.utah-chrome-inner {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  grid-template-areas: "brand nav tools";
+  align-items: center;
+  gap: var(--utah-space-sm) var(--utah-space-md);
+  width: 100%;
+  max-width: 100%;
+}
+
+@container chrome (max-width: 52rem) {
+  .utah-chrome-inner {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "brand tools"
+      "nav nav";
+  }
+}
+
+@container chrome (max-width: 28rem) {
+  .utah-chrome-inner {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "nav"
+      "tools";
+  }
+
+  .utah-toolbar {
+    justify-content: stretch;
+  }
+
+  .utah-toolbar .utah-btn {
+    flex: 1;
+  }
+}
+
+.utah-brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  gap: var(--utah-space-sm);
+  min-width: 0;
+}
+
+.utah-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.1em;
+}
+
+.utah-mark {
+  flex-shrink: 0;
+  width: clamp(10px, 2vw, 14px);
+  height: clamp(10px, 2vw, 14px);
+  border-radius: 2px;
+  background: var(--utah-accent);
+  box-shadow: 0 0 12px var(--utah-glow);
+}
+
+.utah-title {
+  font-weight: 600;
+  font-size: var(--utah-font-lg);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.utah-version {
+  font-size: var(--utah-font-xs);
+  color: var(--utah-muted);
+}
+
+.utah-nav-form {
+  grid-area: nav;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--utah-space-xs);
+  min-width: 0;
+  width: 100%;
+}
+
+.utah-url {
+  flex: 1 1 8rem;
+  min-width: 0;
+  width: 100%;
+  min-height: var(--utah-touch);
+  padding: var(--utah-space-xs) var(--utah-space-sm);
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius);
+  background: #0a1018;
+  color: var(--utah-text);
+  font: inherit;
+}
+
+.utah-toolbar {
+  grid-area: tools;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--utah-space-xs);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.utah-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--utah-touch);
+  padding: var(--utah-space-xs) var(--utah-space-sm);
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius);
+  background: #1a2433;
+  color: var(--utah-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--utah-font-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  transform: translateZ(0);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+@media (hover: hover) {
+  .utah-btn:hover {
+    border-color: var(--utah-accent);
+    box-shadow: 0 0 0 1px var(--utah-glow);
+  }
+}
+
+.utah-btn-primary {
+  background: linear-gradient(180deg, #2f6db3 0%, #245a96 100%);
+  border-color: #3d7ec4;
+}
+
+.utah-btn-warn {
+  border-color: #a64b38;
+  color: #ffd4cb;
+}
+
+.utah-muted {
+  color: var(--utah-muted);
+  font-size: var(--utah-font-sm);
+}
+
+.utah-card {
+  padding: var(--utah-space-md);
+  background: var(--utah-surface);
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius);
+}
+
+.utah-card h2 {
+  margin: 0 0 var(--utah-space-xs);
+  font-size: var(--utah-font-lg);
+}
+
+.utah-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--utah-space-xs);
+  margin: var(--utah-space-sm) 0;
+}
+
+.utah-verify-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--utah-space-xs);
+  min-width: 0;
+}
+
+.utah-verify-form label {
+  font-size: var(--utah-font-sm);
+}
+
+.utah-verify-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(5rem, 20vh, 12rem);
+  max-height: 40vh;
+  padding: var(--utah-space-sm);
+  border-radius: var(--utah-radius);
+  border: 1px solid var(--utah-border);
+  background: #0a1018;
+  color: var(--utah-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.utah-status {
+  display: grid;
+  grid-template-columns: minmax(4rem, auto) minmax(0, 1fr);
+  gap: var(--utah-space-xs) var(--utah-space-sm);
+  margin: var(--utah-space-sm) 0 0;
+  font-size: var(--utah-font-sm);
+  word-break: break-word;
+}
+
+.utah-status dt {
+  color: var(--utah-muted);
+}
+
+.utah-truth-result {
+  font-size: var(--utah-font-sm);
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.utah-truth-result.utah-flagged {
+  color: #ffb4a6;
+  border-left: 3px solid var(--utah-warn);
+  padding-left: var(--utah-space-sm);
+}
+
+.utah-truth-result.utah-ok {
+  color: var(--utah-ok);
+  border-left: 3px solid var(--utah-ok);
+  padding-left: var(--utah-space-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

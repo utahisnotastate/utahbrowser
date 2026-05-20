@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Utah Browser</title>
+  <link rel="stylesheet" href="utah.css" />
+  <link rel="stylesheet" href="layout.css" />
+</head>
+<body class="utah-shell">
+  <input type="checkbox" id="truth-hud-toggle" class="utah-sr-only" aria-hidden="true" />
+  <input type="checkbox" id="panel-tools" class="utah-sr-only" checked />
+
+  <header class="utah-chrome" role="banner">
+    <div class="utah-chrome-inner">
+      <div class="utah-brand">
+        <span class="utah-mark" aria-hidden="true"></span>
+        <div class="utah-brand-text">
+          <span class="utah-title">Utah Browser</span>
+          <span class="utah-version">V1.0-GENESIS</span>
+        </div>
+      </div>
+
+      <form class="utah-nav-form" action="utah://localhost/navigate" method="get">
+        <label class="utah-sr-only" for="url">Address</label>
+        <input id="url" name="url" type="url" class="utah-url" placeholder="https://" required />
+        <button type="submit" class="utah-btn utah-btn-primary">Go</button>
+      </form>
+
+      <nav class="utah-toolbar" aria-label="Browser tools">
+        <label for="panel-tools" class="utah-btn">Tools</label>
+        <label for="truth-hud-toggle" class="utah-btn utah-btn-warn">Truth HUD</label>
+      </nav>
+    </div>
+  </header>
+
+  <div class="utah-body">
+    <aside class="utah-sidepanel" id="tools-panel" aria-label="Truth Engine tools">
+      <section class="utah-card">
+        <h2>Truth Engine</h2>
+        <p class="utah-muted">Local-only RAG against your notebook corpus. No telemetry.</p>
+        <div class="utah-actions">
+          <button type="button" class="utah-btn" data-utah-cmd="get_status">Status</button>
+          <button type="button" class="utah-btn" data-utah-cmd="ingest_notebooks">Ingest Notebooks</button>
+        </div>
+        <form class="utah-verify-form" id="verify-form">
+          <label for="verify-text">Verify statement</label>
+          <textarea id="verify-text" name="text" rows="4" placeholder="Paste claim or transcript excerpt…"></textarea>
+          <button type="submit" class="utah-btn utah-btn-primary">Verify</button>
+        </form>
+        <dl class="utah-status" id="status-lines">
+          <dt>Ollama</dt><dd id="st-ollama">—</dd>
+          <dt>Qdrant</dt><dd id="st-qdrant">—</dd>
+          <dt>Knowledge</dt><dd id="st-knowledge">—</dd>
+          <dt>Chunks</dt><dd id="st-chunks">—</dd>
+        </dl>
+      </section>
+    </aside>
+
+    <main class="utah-main">
+      <iframe
+        id="utah-page"
+        class="utah-page"
+        name="utah-page"
+        title="Web content"
+        src="about:blank"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+      ></iframe>
+    </main>
+  </div>
+
+  <aside class="utah-truth-hud" id="truth-hud" aria-live="polite">
+    <h2>Truth Guard</h2>
+    <div id="truth-result" class="utah-truth-result utah-muted">
+      Awaiting verification…
+    </div>
+  </aside>
+
+  <script src="transport.js"></script>
+</body>
+</html>
