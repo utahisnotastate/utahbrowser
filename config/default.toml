@@ -43,6 +43,7 @@ window_title = "Utah Browser // V1.0-GENESIS // OMEGA-23"
 bookmarks_collection = "utah_bookmarks"
 suspend_on_switch = true
 prefetch_enabled = true
+prefetch_buffer_max_mb = 8
 
 [ghost_link]
 enabled = false

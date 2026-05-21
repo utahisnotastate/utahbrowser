@@ -103,6 +103,13 @@ pub enum IpcEvent {
     SpatialBookmarks { hits: Vec<SpatialBookmarkPayload> },
     ExtensionsUpdated { extensions: Vec<ExtensionPayload> },
     PrefetchQueued { urls: Vec<String> },
+    /// Memory-buffer injection ready — load via `utah://localhost/buffer/{id}`.
+    PrefetchBuffered {
+        url: String,
+        buffer_id: String,
+        buffer_uri: String,
+        bytes: usize,
+    },
     TabSuspended { tab_id: u32 },
     ExtensionRan { name: String, result: i32 },
     GhostLinkStatus {

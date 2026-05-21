@@ -15,6 +15,7 @@ Privacy-first desktop shell (Rust + Wry) with a local **Truth Engine**: notebook
 | Understand the full stack | [SOVEREIGN_INTELLIGENCE_STACK.md](SOVEREIGN_INTELLIGENCE_STACK.md) |
 | Fix launch crashes | [technical/CRASH_ON_LAUNCH_REPORT.md](technical/CRASH_ON_LAUNCH_REPORT.md) |
 | Hand off to another engineer / AI | [technical/SYSTEM_ARCHITECTURE_REPORT.md](technical/SYSTEM_ARCHITECTURE_REPORT.md) |
+| Unified compositor & Phase 3 | [technical/UNIFIED_COMPOSITOR_AND_PHASE3.md](technical/UNIFIED_COMPOSITOR_AND_PHASE3.md) |
 | Publish a demo release | [DEMO_RELEASE.md](DEMO_RELEASE.md) |
 
 ---
@@ -38,7 +39,7 @@ Privacy-first desktop shell (Rust + Wry) with a local **Truth Engine**: notebook
 
 | Script | Output |
 |--------|--------|
-| `scripts/Build-Demo.ps1` | Stable **demo** `dist/` (safe mode, `demo.toml`) |
+| `scripts/Build-Demo.ps1` | Stable **demo** `dist/` (unified compositor, `demo.toml`) |
 | `scripts/Build-Standalone.ps1` | Full **dev** `dist/` (latest main features) |
 | `scripts/deploy_sovereign.ps1` | Install + Ghost-Link + standalone |
 | `scripts/install.ps1` | Zero-Click Kernel (full install) |

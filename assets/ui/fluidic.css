@@ -138,3 +138,30 @@ body.sensory-calm {
   background: radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.12), transparent 60%),
     rgba(0, 0, 0, 0.35);
 }
+
+.chrome-bookmarks {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem 0.4rem;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.utah-bookmark-float {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: none;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(0, 242, 255, 0.2);
+  border: 1px solid rgba(0, 242, 255, 0.45);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.utah-bookmark-float-active {
+  opacity: 1;
+}

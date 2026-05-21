@@ -8,10 +8,10 @@ How to publish a **stable demo** snapshot on [GitHub](https://github.com/utahisn
 
 | Line | Git ref | Purpose |
 |------|---------|---------|
-| **Development** | `main` | Sentinel-Core, dual WebView, Ghost-Link, vault APIs |
-| **Demo stable** | `demo/v1.0` branch + tag `v1.0-demo` | Safe-mode profile, minimal moving parts |
+| **Development** | `main` | Unified compositor, Phase 3 prefetch/WASM, Sentinel-Core, vault APIs |
+| **Demo stable** | `demo/v1.0` branch + tag `v1.0-demo` | `demo.toml` + unified Ghost-Chrome frame |
 
-The demo is intentionally a **simpler runtime path** (not an old commit frozen in time unless you choose to tag one).
+The demo uses the **same compositor** as main with conservative config (see `config/demo.toml`).
 
 ---
 
@@ -28,7 +28,7 @@ git pull
 # Smoke test
 cd dist
 .\UtahBrowser.cmd
-# Confirm %APPDATA%\UtahBrowser\logs\browser.log shows "demo mode" or "single-safe"
+# Confirm %APPDATA%\UtahBrowser\logs\browser.log shows "shell ready (unified)"
 
 # Commit demo tooling on main (if not already)
 git add -A

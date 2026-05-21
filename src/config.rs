@@ -75,8 +75,15 @@ pub struct BrowserConfig {
     pub bookmarks_collection: String,
     /// Serialize inactive tabs to vault cache on switch.
     pub suspend_on_switch: bool,
-    /// Queue predictive prefetch hints (Time-Loop scaffold).
+    /// Queue predictive prefetch hints (Time-Loop / intent-resolution).
     pub prefetch_enabled: bool,
+    /// Max RAM for `utah://localhost/buffer/*` compositor cache (MiB).
+    #[serde(default = "default_prefetch_buffer_mb")]
+    pub prefetch_buffer_max_mb: u32,
+}
+
+fn default_prefetch_buffer_mb() -> u32 {
+    8
 }
 
 impl Default for BrowserConfig {
@@ -85,6 +92,7 @@ impl Default for BrowserConfig {
             bookmarks_collection: "utah_bookmarks".into(),
             suspend_on_switch: true,
             prefetch_enabled: true,
+            prefetch_buffer_max_mb: default_prefetch_buffer_mb(),
         }
     }
 }

@@ -28,7 +28,8 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 
 | Who you are | Start here |
 |-------------|------------|
-| **Demo (stable, easy run)** | **[Demo guide](docs/DEMO.md)** — `UtahBrowser.cmd`, safe mode |
+| **Demo (stable, easy run)** | **[Demo guide](docs/DEMO.md)** — `UtahBrowser.cmd`, unified compositor |
+| Unified compositor + Phase 3 | [Technical: compositor & SOTA](docs/technical/UNIFIED_COMPOSITOR_AND_PHASE3.md) |
 | Kids & families | [Guide for kids](docs/guides/FOR_KIDS.md) |
 | Everyday users | [Easy start](docs/guides/FOR_EVERYONE.md) |
 | **Installation** | [Install guide](docs/INSTALLATION.md) |
@@ -44,6 +45,9 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 
 ## Features
 
+- **Unified compositor** — one WebView2 (Ghost-Chrome + content iframe); no dual-engine contention
+- **Intent prefetch** — cursor/bookmark hints → DNS + memory buffer (`utah://localhost/buffer/…`)
+- **WASM extensions** — wasmi sandbox in `%APPDATA%/UtahBrowser/extensions/`
 - **Native shell** — Rust + Wry; no Electron bloat
 - **Truth Guard** — ingest PDF/Markdown/text; verify claims against your corpus
 - **Zero-Click Kernel** — one installer: Ollama health, **native Qdrant** (no Docker), model pull, release build
@@ -54,7 +58,7 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 
 ## Quick start — Demo (anyone)
 
-**Stable demo** — single WebView, double-click launcher, no PowerShell quoting issues:
+**Stable demo** — unified compositor (Ghost-Chrome frame), double-click launcher, no PowerShell quoting issues:
 
 ```powershell
 git clone https://github.com/utahisnotastate/utahbrowser.git

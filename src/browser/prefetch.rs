@@ -1,10 +1,11 @@
-//! Predictive prefetch kernel (Time-Loop scaffold).
-//!
-//! Time-Loop prefetch — UI hover hints + Ghost-Link `prefetch.json` from the sensory daemon.
+//! Predictive prefetch kernel (Time-Loop / intent-resolution queue).
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-const MAX_QUEUE: usize = 8;
+const MAX_QUEUE: usize = 16;
+
+static HINT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Background URL prefetch queue (content WebView pre-warm is engine-driven).
 #[derive(Debug, Default)]
@@ -41,5 +42,9 @@ impl PrefetchKernel {
 
     pub fn pending(&self) -> Vec<String> {
         self.queue.iter().cloned().collect()
+    }
+
+    pub fn next_hint_id(&self) -> u64 {
+        HINT_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
 }

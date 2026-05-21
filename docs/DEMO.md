@@ -3,7 +3,7 @@
 **For evaluators, sponsors, and anyone who just wants it to run.**  
 Repository: [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
 
-The **demo profile** uses a simplified config and **safe mode** (single WebView) for maximum stability on Windows. Full features (dual chrome + dashboard strip) remain on the `main` branch for developers.
+The **demo profile** uses a simplified config and the **unified compositor** (one WebView2: Ghost-Chrome frame + content iframe). Legacy dual-WebView mode is opt-in only (`UTAH_LEGACY_DUAL=1`).
 
 ---
 
@@ -58,9 +58,10 @@ Or double-click **`UtahBrowser.cmd`** in File Explorer.
 
 - A window titled **Utah Browser // DEMO**
 - **Google** (or your configured home page) in the main view
-- In demo mode the app uses **single WebView (safe mode)** — reliable browsing without the dual chrome strip
+- **Ghost-Chrome** tab strip and URL bar in the same window (no second WebView engine)
+- Log line should read **`shell ready (unified)`**
 
-To try the full Utah dashboard UI later, delete safe mode state and restart without demo mode (see [DEMO_RELEASE.md](DEMO_RELEASE.md)).
+Use the **◈** button (or dashboard IPC) for the full Utah app shell (`index.html`). Legacy dual HWND mode: set `UTAH_LEGACY_DUAL=1` before launch (see [DEMO_RELEASE.md](DEMO_RELEASE.md)).
 
 ---
 

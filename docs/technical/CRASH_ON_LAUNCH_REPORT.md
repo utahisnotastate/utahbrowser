@@ -22,7 +22,7 @@ Users reported **crash on launch** when double-clicking the portable `dist` buil
 | Grey **“documentation”** banner at startup | Unknown UI element (not found in current `assets/ui` grep); may be WebView2/devtools, stale `dist` assets, or external | **Unconfirmed** — needs repro screenshot + which WebView shows it |
 | PowerShell: `Ensure-QdrantReady` not recognized | **Stale `dist/scripts/kernel/Health.ps1`** missing newer functions | **Fixed** — sync kernel scripts into `dist` |
 
-**Important:** Logs from at least one session showed **`shell ready (dual)`** — the process **did boot** the dual-WebView shell. Not all “crashes” are WebView2 boot failures; some are launcher false positives or post-boot instability.
+**Important (2026):** Default boot is **`shell ready (unified)`** (one WebView2). Legacy dual mode is opt-in (`UTAH_LEGACY_DUAL=1`). Older logs showing **`shell ready (dual)`** reflect the previous architecture. Not all “crashes” are WebView2 boot failures; some are launcher false positives or post-boot instability.
 
 ---
 

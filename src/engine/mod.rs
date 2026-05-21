@@ -1,8 +1,11 @@
-//! Wry WebView shell (chrome + content), custom protocol, and IPC dispatch.
+//! Unified compositor shell — one WebView2 (Ghost-Chrome frame + content iframe).
 
+mod compositor;
 mod truth_guard;
 
 use crate::browser::{
+    prefetch_buffer::{self, PrefetchBuffer},
+    prefetch_worker,
     ExtensionRuntime, ExtensionTrigger, PrefetchKernel, SemanticBookmarkStore,
 };
 use crate::browser::tab_manager::TabManager;
@@ -19,6 +22,7 @@ use crate::diagnostics;
 use crate::AppState;
 use anyhow::{Context, Result};
 use http::header::CONTENT_TYPE;
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tao::{
@@ -32,9 +36,9 @@ use tao::{
 use wry::http::{Request, Response};
 use wry::{PageLoadEvent, Rect, WebView, WebViewBuilder};
 
-const ASSET_SCHEME: &str = "utah";
+pub(crate) const ASSET_SCHEME: &str = "utah";
 
-const TRANSPORT_SCRIPT: &str = r#"
+pub(crate) const TRANSPORT_SCRIPT: &str = r#"
 (function() {
   if (window.__utahTransport) return;
   window.__utahTransport = true;
@@ -60,33 +64,19 @@ pub enum UserEvent {
     DeferredLoad(String),
     /// Poll Ghost-Link theme.json for haptic UI palette.
     SensoryPoll,
+    /// Background DNS + memory-buffer warm for a hinted URL.
+    PrefetchWarm(String),
+    /// Prefetch worker finished — push `PrefetchBuffered` to the shell UI.
+    PrefetchDone { url: String, buffer_id: String },
 }
+
+type ShellViews = compositor::UnifiedShell;
+
+/// Matches chrome strip height in `browser_frame.html` / mockup.css (logical px).
+pub(crate) const CHROME_STRIP_H: f64 = 112.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShellLayout {
-    /// Chrome strip + content pane (default).
-    Dual,
-    /// Full-window single webview — auto-fallback when dual crashes.
-    Single,
-}
-
-struct ShellViews {
-    layout: ShellLayout,
-    chrome: Option<WebView>,
-    content: WebView,
-}
-
-impl ShellViews {
-    fn ui(&self) -> &WebView {
-        self.chrome.as_ref().unwrap_or(&self.content)
-    }
-}
-
-/// Matches `--chrome-strip-h` in mockup.css (logical px).
-const CHROME_STRIP_H: f64 = 112.0;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShellMode {
+pub(crate) enum ShellMode {
     /// Compact top chrome + native content fills the rest (google.com, etc.).
     Web,
     /// Full-window Utah shell (dashboard, truth guard, …); content hidden.
@@ -99,7 +89,7 @@ impl Default for ShellMode {
     }
 }
 
-fn window_logical_size(window: &Window) -> (f64, f64) {
+pub(crate) fn window_logical_size(window: &Window) -> (f64, f64) {
     let size = window.inner_size();
     let scale = window.scale_factor();
     (
@@ -114,6 +104,8 @@ struct BrowserUi {
     anchors: MemoryAnchorStore,
     extensions: ExtensionRuntime,
     prefetch: PrefetchKernel,
+    prefetch_buffer: Arc<Mutex<PrefetchBuffer>>,
+    prefetch_http: Arc<reqwest::Client>,
     ghost: GhostLinkBridge,
     urm: UrmBridge,
     shell_mode: ShellMode,
@@ -124,6 +116,7 @@ impl BrowserUi {
         let home = config.ui.start_url.clone();
         let mut extensions = ExtensionRuntime::new()?;
         let _ = extensions.load_all();
+        let buffer_mb = config.browser.prefetch_buffer_max_mb.max(1) as usize;
         Ok(Self {
             tabs: TabManager::new(home, config.browser.suspend_on_switch)?,
             bookmarks: SemanticBookmarkStore::load(config)?,
@@ -133,6 +126,15 @@ impl BrowserUi {
             }),
             extensions,
             prefetch: PrefetchKernel::new(config.browser.prefetch_enabled),
+            prefetch_buffer: Arc::new(Mutex::new(PrefetchBuffer::new(
+                buffer_mb * 1024 * 1024,
+            ))),
+            prefetch_http: Arc::new(
+                reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .build()
+                    .unwrap_or_else(|_| reqwest::Client::new()),
+            ),
             ghost: GhostLinkBridge::new(),
             urm: UrmBridge::default(),
             shell_mode: ShellMode::Web,
@@ -174,10 +176,10 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     let mut safe_mode = recovery.should_use_safe_mode();
     if std::env::var("UTAH_DEMO_MODE").ok().as_deref() == Some("1") {
         safe_mode = true;
-        diagnostics::log_step("demo mode: forcing single webview (UTAH_DEMO_MODE=1)");
+        diagnostics::log_step("demo mode: unified compositor (UTAH_DEMO_MODE=1)");
     }
     if safe_mode {
-        diagnostics::log_step("starting in safe mode (single webview fallback)");
+        diagnostics::log_step("recovery safe mode flag set (unified compositor, no dual webview)");
     }
 
     let home_url = state.config.ui.start_url.clone();
@@ -202,28 +204,48 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     let proxy_ipc = proxy.clone();
     let proxy_page = proxy.clone();
     let proxy_title = proxy.clone();
-    let init_script = chrome_init_script(&home_url);
+    let init_script = compositor::frame_init_script(&home_url);
 
     let initial_mode = ShellMode::Web;
     if let Ok(mut b) = browser.lock() {
         b.shell_mode = initial_mode;
     }
 
-    let shell = boot_shell(
-        &window,
-        &assets_root,
-        &init_script,
-        &proxy_nav,
-        &proxy_ipc,
-        &proxy_page,
-        &proxy_title,
-        initial_mode,
-        safe_mode,
-    )?;
+    let prefetch_buffer = {
+        let b = browser.lock().map_err(|_| anyhow::anyhow!("browser lock poisoned"))?;
+        b.prefetch_buffer.clone()
+    };
+
+    let shell = if compositor::legacy_dual_enabled() {
+        diagnostics::log_step("legacy dual webview (UTAH_LEGACY_DUAL=1)");
+        boot_legacy_dual(
+            &window,
+            &assets_root,
+            &chrome_init_script(&home_url),
+            &prefetch_buffer,
+            &proxy_nav,
+            &proxy_ipc,
+            &proxy_page,
+            &proxy_title,
+            initial_mode,
+        )?
+    } else {
+        compositor::boot(
+            &window,
+            &assets_root,
+            &init_script,
+            &prefetch_buffer,
+            &proxy_nav,
+            &proxy_ipc,
+            &proxy_page,
+            &proxy_title,
+            initial_mode,
+        )?
+    };
 
     let mode_label = match shell.layout {
-        ShellLayout::Dual => "dual",
-        ShellLayout::Single => "single-safe",
+        compositor::CompositorLayout::Unified => "unified",
+        compositor::CompositorLayout::LegacyDual => "legacy-dual",
     };
     diagnostics::log_step(&format!("shell ready ({mode_label})"));
     crate::sentinel::signal_shell_ready(mode_label);
@@ -243,18 +265,24 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
             .unwrap_or_else(|| home_url.clone())
     };
 
-    if shell.layout == ShellLayout::Dual {
-        if let (Some(chrome), _) = (&shell.chrome, &shell.content) {
-            if let Err(e) = apply_shell_layout(&window, chrome, &shell.content, initial_mode) {
-                diagnostics::log_step(&format!("layout warn: {e:#}"));
-            }
-            push_tabs_and_bookmarks(chrome, &browser, &home_url);
-            push_navigation(chrome, &browser);
-            push_shell_mode(chrome, initial_mode);
+    let ui = shell.ui();
+    if shell.layout == compositor::CompositorLayout::Unified {
+        if let Err(e) = compositor::set_content_url(ui, &start_url) {
+            diagnostics::log_step(&format!("content frame load warn: {e:#}"));
         }
-    } else {
-        let title = format!("Utah Browser — Safe Mode — {start_url}");
-        window.set_title(&title);
+        push_tabs_and_bookmarks(ui, &browser, &home_url);
+        push_navigation(ui, &browser);
+        let _ = ui.evaluate_script(
+            "if(window.utahOnFrameReady)window.utahOnFrameReady();",
+        );
+        fire_extensions(&browser, ui, ExtensionTrigger::DomLoaded);
+    } else if let Some(chrome) = shell.chrome.as_ref() {
+        if let Err(e) = apply_shell_layout(&window, chrome, shell.content(), initial_mode) {
+            diagnostics::log_step(&format!("layout warn: {e:#}"));
+        }
+        push_tabs_and_bookmarks(chrome, &browser, &home_url);
+        push_navigation(chrome, &browser);
+        push_shell_mode(chrome, initial_mode);
     }
 
     if let Ok(b) = browser.lock() {
@@ -262,6 +290,23 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     }
 
     let _ = proxy.send_event(UserEvent::DeferredLoad(start_url));
+
+    let proxy_drain = proxy.clone();
+    let browser_drain = browser.clone();
+    let prefetch_enabled = state.config.browser.prefetch_enabled;
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            if !prefetch_enabled {
+                continue;
+            }
+            if let Ok(mut b) = browser_drain.lock() {
+                while let Some(url) = b.prefetch.pop() {
+                    schedule_prefetch_warm(&proxy_drain, url, true);
+                }
+            }
+        }
+    });
 
     let state_loop = state.clone();
     let rt = runtime;
@@ -277,11 +322,11 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
                     body,
                     &state_loop,
                     &window,
-                    shell.ui(),
-                    &shell.content,
+                    &shell,
                     &browser_loop,
                     &home_url,
-                    shell.layout,
+                    &proxy,
+                    &rt,
                 )) {
                     diagnostics::log_step(&format!("ipc error: {e:#}"));
                     push_event(shell.ui(), IpcEvent::Error {
@@ -291,8 +336,8 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
             }
             Event::UserEvent(UserEvent::DeferredLoad(url)) => {
                 diagnostics::log_step(&format!("loading {url}"));
-                if let Err(e) = shell.content.load_url(url) {
-                    diagnostics::log_step(&format!("load_url failed: {e:#}"));
+                if let Err(e) = shell_navigate(&shell, url) {
+                    diagnostics::log_step(&format!("navigate failed: {e:#}"));
                 }
             }
             Event::UserEvent(UserEvent::SensoryPoll) => {
@@ -310,12 +355,67 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
                     }
                 }
             }
+            Event::UserEvent(UserEvent::PrefetchWarm(url)) => {
+                let url = url.clone();
+                let state_w = state_loop.clone();
+                let browser_w = browser_loop.clone();
+                let proxy_w = proxy.clone();
+                rt.spawn(async move {
+                    let (client, buffer, enabled) = {
+                        let Ok(b) = browser_w.lock() else {
+                            return;
+                        };
+                        (
+                            b.prefetch_http.clone(),
+                            b.prefetch_buffer.clone(),
+                            state_w.config.browser.prefetch_enabled,
+                        )
+                    };
+                    if !enabled {
+                        return;
+                    }
+                    match prefetch_worker::warm_url(&client, buffer, &url).await {
+                        Ok(id) => {
+                            let _ = proxy_w.send_event(UserEvent::PrefetchDone {
+                                url,
+                                buffer_id: id,
+                            });
+                        }
+                        Err(e) => tracing::debug!("prefetch warm skipped: {e:#}"),
+                    }
+                });
+            }
+            Event::UserEvent(UserEvent::PrefetchDone { url, buffer_id }) => {
+                let url = url.clone();
+                let buffer_id = buffer_id.clone();
+                let buffer_uri = PrefetchBuffer::buffer_uri(&buffer_id);
+                let bytes = browser_loop
+                    .lock()
+                    .ok()
+                    .and_then(|b| {
+                        b.prefetch_buffer
+                            .lock()
+                            .ok()
+                            .and_then(|buf| buf.get(&buffer_id).map(|e| e.body.len()))
+                    })
+                    .unwrap_or(0);
+                push_event(
+                    shell.ui(),
+                    IpcEvent::PrefetchBuffered {
+                        url,
+                        buffer_id,
+                        buffer_uri,
+                        bytes,
+                    },
+                );
+            }
             Event::UserEvent(UserEvent::PageUrl(url)) => {
                 if let Ok(mut b) = browser_loop.lock() {
                     b.tabs.set_active_url(url.clone());
                     push_navigation(shell.ui(), &browser_loop);
                     push_tabs(shell.ui(), &browser_loop, &home_url);
                 }
+                fire_extensions(&browser_loop, shell.ui(), ExtensionTrigger::Navigation);
             }
             Event::UserEvent(UserEvent::PageTitle(title)) => {
                 if let Ok(mut b) = browser_loop.lock() {
@@ -327,15 +427,24 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
                 event: WindowEvent::Resized(_),
                 ..
             } => {
-                if shell.layout == ShellLayout::Dual {
-                    if let Some(chrome) = &shell.chrome {
-                        if let Ok(b) = browser_loop.lock() {
-                            let _ = apply_shell_layout(
-                                &window,
-                                chrome,
-                                &shell.content,
-                                b.shell_mode,
-                            );
+                match shell.layout {
+                    compositor::CompositorLayout::Unified => {
+                        let (w, h) = window_logical_size(&window);
+                        let _ = shell.view.set_bounds(Rect {
+                            position: LogicalPosition::new(0.0, 0.0).into(),
+                            size: LogicalSize::new(w.max(1.0), h.max(1.0)).into(),
+                        });
+                    }
+                    compositor::CompositorLayout::LegacyDual => {
+                        if let Some(chrome) = &shell.chrome {
+                            if let Ok(b) = browser_loop.lock() {
+                                let _ = apply_shell_layout(
+                                    &window,
+                                    chrome,
+                                    shell.content(),
+                                    b.shell_mode,
+                                );
+                            }
                         }
                     }
                 }
@@ -354,43 +463,11 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     Ok(())
 }
 
-fn boot_shell(
+fn boot_legacy_dual(
     window: &Window,
     assets_root: &PathBuf,
     init_script: &str,
-    proxy_nav: &EventLoopProxy<UserEvent>,
-    proxy_ipc: &EventLoopProxy<UserEvent>,
-    proxy_page: &EventLoopProxy<UserEvent>,
-    proxy_title: &EventLoopProxy<UserEvent>,
-    initial_mode: ShellMode,
-    force_single: bool,
-) -> Result<ShellViews> {
-    if force_single {
-        return boot_single_webview(window, proxy_page, proxy_title, proxy_ipc);
-    }
-    match boot_dual_webview(
-        window,
-        assets_root,
-        init_script,
-        proxy_nav,
-        proxy_ipc,
-        proxy_page,
-        proxy_title,
-        initial_mode,
-    ) {
-        Ok(views) => Ok(views),
-        Err(e) => {
-            diagnostics::log_error("dual webview boot", &format!("{e:#}"));
-            diagnostics::log_step("auto-fix: retrying with single webview (safe mode)");
-            boot_single_webview(window, proxy_page, proxy_title, proxy_ipc)
-        }
-    }
-}
-
-fn boot_dual_webview(
-    window: &Window,
-    assets_root: &PathBuf,
-    init_script: &str,
+    prefetch_buffer: &Arc<Mutex<PrefetchBuffer>>,
     proxy_nav: &EventLoopProxy<UserEvent>,
     proxy_ipc: &EventLoopProxy<UserEvent>,
     proxy_page: &EventLoopProxy<UserEvent>,
@@ -421,31 +498,13 @@ fn boot_dual_webview(
         .context("build content webview")?;
 
     let assets = assets_root.clone();
+    let buffer = prefetch_buffer.clone();
     let chrome = WebViewBuilder::new()
         .with_custom_protocol(ASSET_SCHEME.into(), {
             let proxy = proxy_nav.clone();
-            move |_id, request| {
-                if let Some(resp) = try_handle_navigate_route(&request, &proxy) {
-                    return match resp {
-                        Ok(r) => r.map(Into::into),
-                        Err(e) => Response::builder()
-                            .header(CONTENT_TYPE, "text/plain")
-                            .status(500)
-                            .body(e.to_string().into_bytes())
-                            .unwrap()
-                            .map(Into::into),
-                    };
-                }
-                match serve_asset(&assets, request) {
-                    Ok(r) => r.map(Into::into),
-                    Err(e) => Response::builder()
-                        .header(CONTENT_TYPE, "text/plain")
-                        .status(500)
-                        .body(e.to_string().into_bytes())
-                        .unwrap()
-                        .map(Into::into),
-                }
-            }
+            let assets = assets.clone();
+            let buffer = buffer.clone();
+            move |_id, request| protocol_response(&assets, &buffer, &request, &proxy).into()
         })
         .with_ipc_handler({
             let proxy = proxy_ipc.clone();
@@ -460,55 +519,9 @@ fn boot_dual_webview(
         .context("build chrome webview")?;
 
     Ok(ShellViews {
-        layout: ShellLayout::Dual,
+        layout: compositor::CompositorLayout::LegacyDual,
+        view: content,
         chrome: Some(chrome),
-        content,
-    })
-}
-
-fn boot_single_webview(
-    window: &Window,
-    proxy_page: &EventLoopProxy<UserEvent>,
-    proxy_title: &EventLoopProxy<UserEvent>,
-    proxy_ipc: &EventLoopProxy<UserEvent>,
-) -> Result<ShellViews> {
-    diagnostics::log_step("boot: single webview (safe mode)");
-
-    let (w, h) = window_logical_size(window);
-    let content = WebViewBuilder::new()
-        .with_url("about:blank")
-        .with_bounds(Rect {
-            position: LogicalPosition::new(0.0, 0.0).into(),
-            size: LogicalSize::new(w.max(1.0), h.max(1.0)).into(),
-        })
-        .with_back_forward_navigation_gestures(true)
-        .with_on_page_load_handler({
-            let proxy = proxy_page.clone();
-            move |event, url| {
-                if matches!(event, PageLoadEvent::Finished) {
-                    let _ = proxy.send_event(UserEvent::PageUrl(url));
-                }
-            }
-        })
-        .with_document_title_changed_handler({
-            let proxy = proxy_title.clone();
-            move |title| {
-                let _ = proxy.send_event(UserEvent::PageTitle(title));
-            }
-        })
-        .with_ipc_handler({
-            let proxy = proxy_ipc.clone();
-            move |req| {
-                let _ = proxy.send_event(UserEvent::Ipc(req.body().clone()));
-            }
-        })
-        .build_as_child(window)
-        .context("build single webview")?;
-
-    Ok(ShellViews {
-        layout: ShellLayout::Single,
-        chrome: None,
-        content,
     })
 }
 
@@ -584,7 +597,81 @@ fn push_shell_mode(chrome: &WebView, mode: ShellMode) {
     ));
 }
 
-fn try_handle_navigate_route(
+fn shell_navigate(shell: &ShellViews, url: &str) -> Result<()> {
+    match shell.layout {
+        compositor::CompositorLayout::Unified => compositor::set_content_url(shell.ui(), url),
+        compositor::CompositorLayout::LegacyDual => shell.content().load_url(url).map_err(Into::into),
+    }
+}
+
+fn shell_back(shell: &ShellViews) {
+    match shell.layout {
+        compositor::CompositorLayout::Unified => compositor::content_back(shell.ui()),
+        compositor::CompositorLayout::LegacyDual => {
+            let _ = shell.content().evaluate_script("window.history.back()");
+        }
+    }
+}
+
+fn shell_forward(shell: &ShellViews) {
+    match shell.layout {
+        compositor::CompositorLayout::Unified => compositor::content_forward(shell.ui()),
+        compositor::CompositorLayout::LegacyDual => {
+            let _ = shell
+                .content()
+                .evaluate_script("window.history.forward()");
+        }
+    }
+}
+
+fn shell_reload(shell: &ShellViews) -> Result<()> {
+    match shell.layout {
+        compositor::CompositorLayout::Unified => {
+            compositor::content_reload(shell.ui());
+            Ok(())
+        }
+        compositor::CompositorLayout::LegacyDual => shell.content().reload().map_err(Into::into),
+    }
+}
+
+pub(crate) fn protocol_response(
+    assets: &PathBuf,
+    buffer: &Arc<Mutex<PrefetchBuffer>>,
+    request: &Request<Vec<u8>>,
+    proxy: &EventLoopProxy<UserEvent>,
+) -> Response<Cow<'static, [u8]>> {
+    if let Some(resp) = try_handle_navigate_route(request, proxy) {
+        return match resp {
+            Ok(r) => r.map(|b| Cow::from(b)),
+            Err(e) => Response::builder()
+                .header(CONTENT_TYPE, "text/plain")
+                .status(500)
+                .body(Cow::from(e.to_string().into_bytes()))
+                .unwrap(),
+        };
+    }
+    let path = request.uri().path();
+    if let Ok(buf) = buffer.lock() {
+        if let Ok(Some((mime, body))) = prefetch_buffer::try_serve_buffer(&buf, path) {
+            return Response::builder()
+                .header(CONTENT_TYPE, mime)
+                .header("Cache-Control", "private, max-age=3600")
+                .header("X-Utah-Buffer", "1")
+                .body(Cow::from(body))
+                .unwrap();
+        }
+    }
+    match serve_asset(assets, request.clone()) {
+        Ok(r) => r.map(|b| Cow::from(b)),
+        Err(e) => Response::builder()
+            .header(CONTENT_TYPE, "text/plain")
+            .status(500)
+            .body(Cow::from(e.to_string().into_bytes()))
+            .unwrap(),
+    }
+}
+
+pub(crate) fn try_handle_navigate_route(
     request: &Request<Vec<u8>>,
     proxy: &EventLoopProxy<UserEvent>,
 ) -> Option<Result<Response<Vec<u8>>>> {
@@ -637,7 +724,7 @@ fn percent_decode(s: &str) -> String {
     out
 }
 
-fn serve_asset(root: &PathBuf, request: Request<Vec<u8>>) -> Result<Response<Vec<u8>>> {
+pub(crate) fn serve_asset(root: &PathBuf, request: Request<Vec<u8>>) -> Result<Response<Vec<u8>>> {
     let path = request.uri().path();
     let rel = if path == "/" || path.is_empty() {
         "index.html"
@@ -661,16 +748,45 @@ fn serve_asset(root: &PathBuf, request: Request<Vec<u8>>) -> Result<Response<Vec
         .unwrap())
 }
 
+fn schedule_prefetch_warm(
+    proxy: &EventLoopProxy<UserEvent>,
+    url: String,
+    enabled: bool,
+) {
+    if enabled && !url.is_empty() {
+        let _ = proxy.send_event(UserEvent::PrefetchWarm(url));
+    }
+}
+
+fn fire_extensions(
+    browser: &Arc<Mutex<BrowserUi>>,
+    chrome: &WebView,
+    trigger: ExtensionTrigger,
+) {
+    let runs: Vec<(String, Result<i32>)> = browser
+        .lock()
+        .map(|mut b| b.extensions.dispatch(trigger))
+        .unwrap_or_default();
+    for (name, result) in runs {
+        match result {
+            Ok(code) => push_event(chrome, IpcEvent::ExtensionRan { name, result: code }),
+            Err(e) => push_event(chrome, IpcEvent::Error { message: format!("{e:#}") }),
+        }
+    }
+}
+
 async fn handle_ipc(
     body: &str,
     state: &Arc<AppState>,
-    _window: &Window,
-    chrome: &WebView,
-    content: &WebView,
+    window: &Window,
+    shell: &ShellViews,
     browser: &Arc<Mutex<BrowserUi>>,
     home_url: &str,
-    layout: ShellLayout,
+    proxy: &EventLoopProxy<UserEvent>,
+    _rt: &tokio::runtime::Runtime,
 ) -> Result<()> {
+    let chrome = shell.ui();
+    let layout = shell.layout;
     let req = match IpcRequest::parse(body) {
         Ok(r) => r,
         Err(e) => {
@@ -686,9 +802,11 @@ async fn handle_ipc(
             let url = normalize_url(&url);
             let mut b = browser.lock().expect("browser lock");
             let url = b.tabs.navigate_active(url);
-            content.load_url(&url)?;
+            shell_navigate(shell, &url)?;
             push_tabs(chrome, browser, home_url);
             push_navigation(chrome, browser);
+            fire_extensions(browser, chrome, ExtensionTrigger::Navigation);
+            schedule_prefetch_warm(proxy, url.clone(), state.config.browser.prefetch_enabled);
         }
         IpcRequest::NewTab { url } => {
             let mut b = browser.lock().expect("browser lock");
@@ -698,7 +816,7 @@ async fn handle_ipc(
                 .tabs
                 .active_url()
                 .unwrap_or_else(|| home_url.to_string());
-            content.load_url(&load)?;
+            shell_navigate(shell, &load)?;
             push_tabs_and_bookmarks(chrome, browser, home_url);
             push_navigation(chrome, browser);
         }
@@ -714,7 +832,7 @@ async fn handle_ipc(
                 return Ok(());
             }
             if let Some(load) = b.tabs.active_url() {
-                content.load_url(&load)?;
+                shell_navigate(shell, &load)?;
             }
             push_tabs(chrome, browser, home_url);
             push_navigation(chrome, browser);
@@ -722,7 +840,7 @@ async fn handle_ipc(
         IpcRequest::SwitchTab { tab_id } => {
             let mut b = browser.lock().expect("browser lock");
             if let Some(url) = b.tabs.switch_tab(tab_id)? {
-                content.load_url(&url)?;
+                shell_navigate(shell, &url)?;
                 push_tabs(chrome, browser, home_url);
                 push_navigation(chrome, browser);
             }
@@ -733,20 +851,14 @@ async fn handle_ipc(
             push_event(chrome, IpcEvent::TabSuspended { tab_id });
             push_tabs(chrome, browser, home_url);
         }
-        IpcRequest::GoBack => {
-            let _ = content.evaluate_script("window.history.back()");
-        }
-        IpcRequest::GoForward => {
-            let _ = content.evaluate_script("window.history.forward()");
-        }
-        IpcRequest::Reload => {
-            content.reload()?;
-        }
+        IpcRequest::GoBack => shell_back(shell),
+        IpcRequest::GoForward => shell_forward(shell),
+        IpcRequest::Reload => shell_reload(shell)?,
         IpcRequest::GoHome => {
             let url = home_url.to_string();
             let mut b = browser.lock().expect("browser lock");
             let url = b.tabs.navigate_active(url);
-            content.load_url(&url)?;
+            shell_navigate(shell, &url)?;
             push_tabs(chrome, browser, home_url);
             push_navigation(chrome, browser);
         }
@@ -889,14 +1001,17 @@ async fn handle_ipc(
             }
         }
         IpcRequest::PrefetchHint { url } => {
+            let url = normalize_url(&url);
+            let enabled = state.config.browser.prefetch_enabled;
             let mut b = browser.lock().expect("browser lock");
-            b.prefetch.hint(normalize_url(&url));
+            b.prefetch.hint(url.clone());
             push_event(
                 chrome,
                 IpcEvent::PrefetchQueued {
                     urls: b.prefetch.pending(),
                 },
             );
+            schedule_prefetch_warm(proxy, url, enabled);
         }
         IpcRequest::GetStatus => {
             let (ollama, qdrant) = state.truth.read().await.health().await;
@@ -1161,12 +1276,6 @@ async fn handle_ipc(
             });
         }
         IpcRequest::SetShellMode { mode } => {
-            if layout != ShellLayout::Dual {
-                push_event(chrome, IpcEvent::Error {
-                    message: "Shell panels require dual webview mode. Restart after safe mode clears.".into(),
-                });
-                return Ok(());
-            }
             let shell_mode = if mode.eq_ignore_ascii_case("app") {
                 ShellMode::App
             } else {
@@ -1175,8 +1284,24 @@ async fn handle_ipc(
             if let Ok(mut b) = browser.lock() {
                 b.shell_mode = shell_mode;
             }
-            apply_shell_layout(_window, chrome, content, shell_mode)?;
-            push_shell_mode(chrome, shell_mode);
+            match layout {
+                compositor::CompositorLayout::Unified => {
+                    let active = browser
+                        .lock()
+                        .ok()
+                        .and_then(|b| b.tabs.active_url());
+                    compositor::apply_shell_mode(
+                        chrome,
+                        shell_mode,
+                        active.as_deref(),
+                    )?;
+                }
+                compositor::CompositorLayout::LegacyDual => {
+                    let content = shell.content();
+                    apply_shell_layout(window, chrome, content, shell_mode)?;
+                    push_shell_mode(chrome, shell_mode);
+                }
+            }
         }
         IpcRequest::IngestZone { zone_id } => {
             let (path, weight, direct_map) = {

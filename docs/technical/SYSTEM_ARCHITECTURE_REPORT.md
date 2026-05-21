@@ -175,42 +175,44 @@ Writable per-user state (`src/browser/storage_bridge.rs`):
 
 ---
 
-## 6. Web shell design (Wry + dual WebView)
+## 6. Web shell design (Unified Compositor)
 
-### 6.1 Why two WebViews
+### 6.1 Default: one WebView2
 
-| WebView | URL scheme | Purpose |
-|---------|------------|---------|
-| **Chrome** | `utah://localhost/index.html` | Dashboard, Truth Guard, tab strip, URL bar — custom protocol serves `assets/ui/` |
-| **Content** | `https://...` (default Google) | Real web pages; isolated from chrome DOM |
+| Layer | Implementation |
+|-------|----------------|
+| **Shell** | Single child WebView loads `utah://localhost/browser_frame.html` (Ghost-Chrome header + assets) |
+| **Content** | `<iframe id="utah-content-frame">` — external pages; navigation via `window.utahNavigateContent(url)` (`compositor.js`) |
+| **Rust** | `src/engine/compositor.rs` — `boot()`, `set_content_url()`, `apply_shell_mode()` |
 
-**Layout (native, not CSS-only):** `CHROME_STRIP_H = 112.0` px — Rust sets `Rect` bounds on both children via `apply_shell_layout`.
+**Why:** Two HWND WebViews (legacy) caused IPC/memory contention and `0xcfffffff`-class instability on some systems. One engine + iframe removes sync drift between chrome and content panes.
+
+**Legacy (opt-in):** `UTAH_LEGACY_DUAL=1` restores two WebViews (`boot_legacy_dual` in `engine/mod.rs`).
 
 ### 6.2 Shell modes (`ShellMode`)
 
-| Mode | Chrome bounds | Content bounds | UX |
-|------|---------------|----------------|-----|
-| `Web` | Top 112px strip | Below strip | Browsing |
-| `App` | Full window | Hidden (`hidden_content_bounds`) | Full Utah dashboard shell |
+| Mode | Entry URL | UX |
+|------|-----------|-----|
+| `Web` | `browser_frame.html` | Browsing with chrome strip + iframe |
+| `App` | `index.html` | Full Utah dashboard |
 
-Switched via IPC `SetShellMode { mode: "web" | "app" }`; chrome JS receives `utahOnShellMode` / `utahSetShellMode`.
+Switched via IPC `SetShellMode { mode: "web" \| "app" }`; unified path uses `compositor::apply_shell_mode`.
 
-### 6.3 Safe mode (single WebView)
+### 6.3 Recovery / demo flags
 
-- Trigger: `recovery.json` → `consecutive_failures >= 2` or `force_safe_mode`.
-- Boot: `boot_single_webview` — one child WebView, full window, external URL only.
-- Dual boot failure in-session also falls back to single WebView once.
-- Clear: IPC `ClearSafeMode` + delete `recovery.json` + restart for dual UI retry.
+- `recovery.json` may set safe-mode flag after repeated boot failures (logging only; boot stays **unified**).
+- `UTAH_DEMO_MODE=1` — demo config + unified compositor (see `Build-Demo.ps1`).
+- Clear safe-mode flag: IPC `ClearSafeMode` or delete `recovery.json`.
 
 ### 6.4 Custom protocol
 
 - Scheme: `utah` (`ASSET_SCHEME` in `engine/mod.rs`).
 - Handler: `serve_asset` maps request path → files under `assets/ui/`.
-- Navigation route: `utah://localhost/navigate?url=...` intercepted → `UserEvent` → content `load_url`.
+- Navigation route: `utah://localhost/navigate?url=...` → IPC → `shell_navigate` → iframe or legacy content webview.
 
 ### 6.5 IPC bridge
 
-- Chrome WebView registers `with_ipc_handler` → `UserEvent::Ipc(body)`.
+- Shell WebView registers `with_ipc_handler` → `UserEvent::Ipc(body)`.
 - Rust parses `IpcRequest` from JSON (`src/ipc/messages.rs`).
 - Responses: `evaluate_script` pushing `CustomEvent('utah-ipc', { detail })` or `window.__utahIpc` pattern (see `push_event` helpers in engine).
 
@@ -328,7 +330,7 @@ Uses `reqwest` + rustls (no native TLS dependency on Windows schannel for consis
 
 ### 9.4 Prefetch (`browser/prefetch.rs`)
 
-- Time-loop scaffold: queues URLs from hints (Ghost-Link or IPC `PrefetchHint`).
+- **Time-loop / intent-resolution:** `PrefetchHint` → DNS lookup + HTTP Range fetch → `utah://localhost/buffer/{id}` (see [UNIFIED_COMPOSITOR_AND_PHASE3.md](UNIFIED_COMPOSITOR_AND_PHASE3.md)).
 - Gated by `browser.prefetch_enabled`.
 
 ---

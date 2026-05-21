@@ -15,7 +15,7 @@ const STUB_EXTENSION_WASM: &[u8] = &[
     0x6e, 0x74, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x00, 0x20, 0x00, 0x0b,
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExtensionTrigger {
     #[serde(rename = "DOM_LOADED")]
     DomLoaded,
@@ -49,6 +49,7 @@ struct LoadedExtension {
 pub struct ExtensionRuntime {
     engine: Engine,
     instances: HashMap<String, LoadedExtension>,
+    manifests: HashMap<String, UtahExtensionManifest>,
 }
 
 impl ExtensionRuntime {
@@ -57,6 +58,7 @@ impl ExtensionRuntime {
         Ok(Self {
             engine: Engine::default(),
             instances: HashMap::new(),
+            manifests: HashMap::new(),
         })
     }
 
@@ -119,6 +121,7 @@ impl ExtensionRuntime {
         let path = PathBuf::from(&manifest.wasm_path);
         let wasm = fs::read(&path)
             .with_context(|| format!("read extension wasm {}", path.display()))?;
+        self.manifests.insert(manifest.name.clone(), manifest.clone());
         self.load_wasm(&manifest.name, &wasm)
     }
 
@@ -153,6 +156,23 @@ impl ExtensionRuntime {
         Ok(())
     }
 
+    pub fn dispatch(&mut self, trigger: ExtensionTrigger) -> Vec<(String, Result<i32>)> {
+        let code = trigger_code(trigger);
+        let names: Vec<String> = self
+            .manifests
+            .values()
+            .filter(|m| m.trigger == trigger)
+            .map(|m| m.name.clone())
+            .collect();
+        names
+            .into_iter()
+            .map(|name| {
+                let result = self.execute(&name, code);
+                (name, result)
+            })
+            .collect()
+    }
+
     pub fn execute(&mut self, name: &str, action_code: i32) -> Result<i32> {
         let ext = self
             .instances
@@ -163,6 +183,14 @@ impl ExtensionRuntime {
             .get_typed_func::<i32, i32>(&mut ext.store, "on_event")
             .context("extension must export on_event(i32) -> i32")?;
         on_event.call(&mut ext.store, action_code).context("on_event")
+    }
+}
+
+fn trigger_code(trigger: ExtensionTrigger) -> i32 {
+    match trigger {
+        ExtensionTrigger::Navigation => 1,
+        ExtensionTrigger::DomLoaded => 2,
+        ExtensionTrigger::Click => 3,
     }
 }
 

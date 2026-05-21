@@ -50,7 +50,7 @@ Running from `scripts\` also works; the installer resolves the project root auto
 | Goal | Command | Notes |
 |------|---------|-------|
 | **Stable demo** (evaluators) | `.\scripts\Build-Demo.ps1` | [DEMO.md](DEMO.md), `UtahBrowser.cmd`, safe mode |
-| **Full dev build** | `.\scripts\Build-Standalone.ps1` | Latest `main` features, dual WebView |
+| **Full dev build** | `.\scripts\Build-Standalone.ps1` | Latest `main` features, unified compositor |
 | **Everything + services** | `.\scripts\deploy_sovereign.ps1` | Install + optional Ghost-Link |
 
 ---

@@ -64,6 +64,8 @@
       var a = document.createElement('button');
       a.type = 'button';
       a.className = 'utah-bookmark';
+      a.draggable = true;
+      a.setAttribute('data-prefetch-url', bm.url);
       a.title = (bm.intention || bm.url) + ' — ' + bm.url;
       a.textContent = bm.title || bm.url;
       a.addEventListener('click', function () {
@@ -213,6 +215,9 @@
       renderBookmarks(d.hits);
     }
     if (d.event === 'extensions_updated') renderExtensions(d.extensions);
+    if (d.event === 'prefetch_buffered' && window.utahPreloadBuffer) {
+      window.utahPreloadBuffer(d.buffer_uri, d.url);
+    }
   });
 
   el('ghost-status-btn') && el('ghost-status-btn').addEventListener('click', function () {

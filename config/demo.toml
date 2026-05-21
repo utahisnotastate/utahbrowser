@@ -38,7 +38,8 @@ window_title = "Utah Browser // DEMO"
 [browser]
 bookmarks_collection = "utah_bookmarks"
 suspend_on_switch = false
-prefetch_enabled = false
+prefetch_enabled = true
+prefetch_buffer_max_mb = 4
 
 [ghost_link]
 enabled = false
