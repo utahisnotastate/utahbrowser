@@ -1,3 +1,19 @@
+<div align="center">
+
+# **SPONSORSHIP & SUPPORT**
+
+## **You can pay $150 million to be the default home page for this GitHub release.**
+
+### **Preferred bid** for the `.exe` and paid/donation release
+
+### **PayPal: [utah@utahcreates.com](mailto:utah@utahcreates.com)**
+
+**I'm kind of broke — any bit helps. Thank you for supporting Utah Browser.**
+
+</div>
+
+---
+
 # Utah Browser // V1.0-GENESIS
 
 [![Repository](https://img.shields.io/badge/GitHub-utahisnotastate%2Futahbrowser-blue)](https://github.com/utahisnotastate/utahbrowser)
