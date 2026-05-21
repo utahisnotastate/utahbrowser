@@ -21,7 +21,8 @@ function Get-QdrantNativePaths {
         StorageDir = Join-Path $root 'storage'
         ConfigPath = Join-Path $root 'config.yaml'
         PidFile    = Join-Path $root 'qdrant.pid'
-        LogFile    = Join-Path $root 'qdrant.log'
+        LogOut     = Join-Path $root 'qdrant.out.log'
+        LogErr     = Join-Path $root 'qdrant.err.log'
         ExePath    = Join-Path $root 'bin\qdrant.exe'
     }
 }
@@ -144,8 +145,8 @@ function Start-QdrantNative {
                 -WorkingDirectory $paths.Root `
                 -WindowStyle Hidden `
                 -PassThru `
-                -RedirectStandardOutput $paths.LogFile `
-                -RedirectStandardError $paths.LogFile
+                -RedirectStandardOutput $paths.LogOut `
+                -RedirectStandardError $paths.LogErr
 
             $proc.Id | Set-Content $paths.PidFile -Encoding ASCII
         }
@@ -172,6 +173,6 @@ function Start-QdrantNative {
 
     return [PSCustomObject]@{
         Ok      = $false
-        Message = "Native Qdrant started but API not ready. Log: $($paths.LogFile)"
+        Message = "Native Qdrant started but API not ready. Logs: $($paths.LogOut) / $($paths.LogErr)"
     }
 }
