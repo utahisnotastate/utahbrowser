@@ -1,0 +1,47 @@
+# Utah Browser — DEMO profile (stable, easy to run)
+# Copied to dist/config/default.toml by scripts/Build-Demo.ps1
+
+[knowledge]
+path = "C:/code/utahisnotastate"
+extensions = ["md", "txt", "markdown", "pdf"]
+
+[ollama]
+host = "http://127.0.0.1:11434"
+embed_model = "nomic-embed-text"
+chat_model = "llama3.2"
+timeout_secs = 120
+
+[qdrant]
+url = "http://127.0.0.1:6333"
+collection = "utah_notebooks"
+vector_size = 768
+
+[truth]
+similarity_threshold = 0.72
+chunk_chars = 800
+chunk_overlap = 120
+max_context_chunks = 6
+
+[audio]
+enabled = false
+
+[evolution]
+enabled = false
+watch_paths = ["src"]
+debounce_ms = 5000
+proposals_dir = "evolution/proposals"
+
+[ui]
+start_url = "https://www.google.com"
+window_title = "Utah Browser // DEMO"
+
+[browser]
+bookmarks_collection = "utah_bookmarks"
+suspend_on_switch = false
+prefetch_enabled = false
+
+[ghost_link]
+enabled = false
+
+[urm]
+enabled = false

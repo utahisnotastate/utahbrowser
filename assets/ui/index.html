@@ -6,77 +6,249 @@
   <meta name="color-scheme" content="dark" />
   <title>Utah Browser</title>
   <link rel="stylesheet" href="utah.css" />
-  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="mockup.css" />
+  <link rel="stylesheet" href="fluidic.css" />
+  <link rel="stylesheet" href="settings_console.css" />
 </head>
-<body class="utah-shell">
-  <input type="checkbox" id="truth-hud-toggle" class="utah-sr-only" aria-hidden="true" />
-  <input type="checkbox" id="panel-tools" class="utah-sr-only" checked />
+<body class="utah-app utah-mode-web ghost-chrome">
+  <input type="radio" name="utah-view" id="view-dashboard" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-web" class="utah-view-input" checked />
+  <input type="radio" name="utah-view" id="view-truth" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-merge" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-welcome" class="utah-view-input" />
+  <input type="checkbox" id="spyglass-open" class="utah-sr-only" />
+  <input type="checkbox" id="sidebar-drawer" class="utah-sr-only" />
 
-  <header class="utah-chrome" role="banner">
-    <div class="utah-chrome-inner">
-      <div class="utah-brand">
-        <span class="utah-mark" aria-hidden="true"></span>
-        <div class="utah-brand-text">
-          <span class="utah-title">Utah Browser</span>
-          <span class="utah-version">V1.0-GENESIS</span>
-        </div>
-      </div>
-
-      <form class="utah-nav-form" action="utah://localhost/navigate" method="get">
-        <label class="utah-sr-only" for="url">Address</label>
-        <input id="url" name="url" type="url" class="utah-url" placeholder="https://" required />
-        <button type="submit" class="utah-btn utah-btn-primary">Go</button>
-      </form>
-
-      <nav class="utah-toolbar" aria-label="Browser tools">
-        <label for="panel-tools" class="utah-btn">Tools</label>
-        <label for="truth-hud-toggle" class="utah-btn utah-btn-warn">Truth HUD</label>
-      </nav>
+  <!-- Native chrome strip (visible when shell mode = web; clipped to top bar height) -->
+  <header class="utah-browser-chrome" role="banner">
+    <button type="button" class="chrome-menu-btn" id="chrome-menu-btn" title="Menu" aria-label="Menu">☰</button>
+    <div class="chrome-brand">
+      <span class="brand-mark">UT</span>
+      <span class="brand-name">Utah</span>
+    </div>
+    <div class="chrome-tabs-wrap">
+      <div id="tab-strip" class="utah-tabs" role="tablist"></div>
+      <button type="button" id="tab-new" class="utah-tab utah-tab-new" title="New tab">+</button>
+    </div>
+    <nav class="chrome-nav" aria-label="Navigation">
+      <button type="button" id="nav-back" class="tb-btn" title="Back">←</button>
+      <button type="button" id="nav-forward" class="tb-btn" title="Forward">→</button>
+      <button type="button" id="nav-reload" class="tb-btn" title="Reload">↻</button>
+      <button type="button" id="nav-go-home" class="tb-btn" title="Home">⌂</button>
+    </nav>
+    <form class="chrome-url" id="url-form" action="utah://localhost/navigate" method="get">
+      <span class="url-shield" aria-hidden="true">⛨</span>
+      <input id="url" name="url" type="text" class="utah-url" placeholder="Search or enter address" spellcheck="false" autocomplete="off" />
+      <button type="submit" class="tb-btn tb-go">Go</button>
+    </form>
+    <div class="chrome-actions">
+      <label for="spyglass-open" class="tb-btn tb-spyglass" title="Spyglass">⌕</label>
+      <button type="button" id="bookmark-add" class="tb-btn" title="Bookmark">★</button>
+      <button type="button" class="tb-btn" data-goto="dashboard" title="Dashboard">◈</button>
+      <button type="button" class="tb-btn" data-goto="truth" title="Truth Guard">⛨</button>
     </div>
   </header>
 
-  <div class="utah-body">
-    <aside class="utah-sidepanel" id="tools-panel" aria-label="Truth Engine tools">
-      <section class="utah-card">
-        <h2>Truth Engine</h2>
-        <p class="utah-muted">Local-only RAG against your notebook corpus. No telemetry.</p>
-        <div class="utah-actions">
-          <button type="button" class="utah-btn" data-utah-cmd="get_status">Status</button>
-          <button type="button" class="utah-btn" data-utah-cmd="ingest_notebooks">Ingest Notebooks</button>
+  <div class="utah-bg-glow" aria-hidden="true"></div>
+
+  <div class="utah-shell-app fluidic-container">
+    <label for="sidebar-drawer" class="sidebar-scrim"></label>
+    <aside class="utah-sidebar" aria-label="Navigation">
+      <div class="sidebar-brand">
+        <span class="brand-mark">UT</span>
+        <div>
+          <span class="brand-name">Utah Browser</span>
+          <span class="brand-workspace">Chief Workspace</span>
         </div>
-        <form class="utah-verify-form" id="verify-form">
-          <label for="verify-text">Verify statement</label>
-          <textarea id="verify-text" name="text" rows="4" placeholder="Paste claim or transcript excerpt…"></textarea>
-          <button type="submit" class="utah-btn utah-btn-primary">Verify</button>
-        </form>
-        <dl class="utah-status" id="status-lines">
-          <dt>Ollama</dt><dd id="st-ollama">—</dd>
-          <dt>Qdrant</dt><dd id="st-qdrant">—</dd>
-          <dt>Knowledge</dt><dd id="st-knowledge">—</dd>
-          <dt>Chunks</dt><dd id="st-chunks">—</dd>
-        </dl>
-      </section>
+      </div>
+      <nav class="sidebar-nav">
+        <label for="view-dashboard" class="nav-item"><span class="nav-icon">◈</span><span>Dashboard</span></label>
+        <label for="view-web" class="nav-item"><span class="nav-icon">◎</span><span>Web</span></label>
+        <label for="view-truth" class="nav-item"><span class="nav-icon">⛨</span><span>Truth Guard</span></label>
+        <label for="view-merge" class="nav-item"><span class="nav-icon">◇</span><span>Tile Merge</span></label>
+        <label for="view-welcome" class="nav-item"><span class="nav-icon">★</span><span>Setup</span></label>
+        <a href="#settings-console" class="nav-item nav-link"><span class="nav-icon">⚙</span><span>Calibrate</span></a>
+      </nav>
+      <div class="sidebar-status">
+        <p class="status-pill" id="sys-mode-pill"><span class="dot dot-ok"></span> Local · Private</p>
+        <div class="vault-meter">
+          <div class="vault-head"><span>Vault</span><span id="vault-label">512 GB</span></div>
+          <div class="vault-bar"><div class="vault-fill" id="vault-fill"></div></div>
+        </div>
+      </div>
     </aside>
 
-    <main class="utah-main">
-      <iframe
-        id="utah-page"
-        class="utah-page"
-        name="utah-page"
-        title="Web content"
-        src="about:blank"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-      ></iframe>
-    </main>
+    <div class="utah-main">
+      <main class="utah-stage">
+        <section class="panel-view panel-dashboard" aria-label="Dashboard">
+          <div class="dash-grid">
+            <article class="glass-card fluid-tile card-truth">
+              <header><h2>Truth Guard</h2></header>
+              <p class="claim-text" id="dash-claim">Verify claims against your local corpus.</p>
+              <div class="verdict-row" id="dash-verdict"><span class="verdict-badge">—</span></div>
+              <button type="button" class="chip-btn" data-goto="truth">Investigate →</button>
+            </article>
+            <article class="glass-card fluid-tile card-notes">
+              <header><h2>Bookmarks</h2></header>
+              <form id="bookmark-search-form" class="mini-search">
+                <input id="bookmark-query" type="search" placeholder="Search intentions…" autocomplete="off" />
+              </form>
+              <div id="bookmark-bar" class="note-list"></div>
+            </article>
+            <article class="glass-card fluid-tile card-corpus">
+              <header><h2>Local Corpus</h2></header>
+              <ul class="corpus-list" id="corpus-list">
+                <li><span>Path</span><strong id="st-knowledge">—</strong></li>
+                <li><span>Chunks</span><strong id="st-chunks">—</strong></li>
+                <li><span>Ollama</span><strong id="st-ollama">—</strong></li>
+                <li><span>Qdrant</span><strong id="st-qdrant">—</strong></li>
+              </ul>
+              <button type="button" class="chip-btn" data-utah-cmd="ingest_notebooks">Ingest</button>
+            </article>
+            <article class="glass-card fluid-tile card-graph">
+              <header><h2>Semantic Map</h2></header>
+              <div id="spatial-map" class="graph-canvas"></div>
+            </article>
+            <article class="glass-card fluid-tile card-system">
+              <header><h2>System</h2></header>
+              <ul class="sys-checklist" id="sys-checklist">
+                <li class="ok">No telemetry</li>
+                <li id="sys-ollama">Ollama — …</li>
+                <li id="sys-qdrant">Qdrant — …</li>
+              </ul>
+              <button type="button" class="chip-btn" data-goto="web">Browse the web →</button>
+            </article>
+            <article class="glass-card fluid-tile card-launch">
+              <header><h2>Quick Launch</h2></header>
+              <div class="launch-grid">
+                <button type="button" class="launch-tile" data-goto="web">Web</button>
+                <button type="button" class="launch-tile" data-goto="truth">Truth</button>
+                <button type="button" class="launch-tile" data-goto="merge">Merge</button>
+                <button type="button" class="launch-tile" data-goto="welcome">Setup</button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-web" aria-hidden="true">
+          <p class="web-hint utah-muted">Browsing runs in the native viewport below the chrome bar.</p>
+        </section>
+
+        <section class="panel-view panel-truth" aria-label="Truth Guard">
+          <header class="panel-hero">
+            <h1>Truth Guard</h1>
+            <p class="hero-sub">Investigate against your notebooks</p>
+          </header>
+          <div class="truth-grid">
+            <article class="glass-card truth-graph-card">
+              <h3>Relationship Graph</h3>
+              <svg class="truth-graph-svg" viewBox="0 0 400 280" aria-hidden="true">
+                <circle cx="200" cy="140" r="22" class="graph-node-center"/>
+                <g class="graph-edges"></g>
+                <g class="graph-nodes"></g>
+              </svg>
+            </article>
+            <article class="glass-card fluid-tile truth-verify-card truth-float-tile">
+              <h3>Verify claim</h3>
+              <form class="utah-verify-form" id="verify-form">
+                <textarea id="verify-text" rows="4" placeholder="Paste claim or excerpt…"></textarea>
+                <button type="submit" class="btn-gold">Verify</button>
+              </form>
+              <div id="truth-result" class="utah-truth-result utah-muted">Awaiting verification…</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-merge" aria-label="Tile merge">
+          <header class="merge-hero">
+            <h1>Fluidic Tile Merge</h1>
+            <p class="hero-sub">Pressure · Proximity · Purpose</p>
+          </header>
+          <div class="merge-stage">
+            <article class="merge-card merge-web">
+              <h3>Web</h3>
+              <p id="merge-web-snippet" class="utah-muted">—</p>
+              <button type="button" class="chip-btn" data-goto="web">Open</button>
+            </article>
+            <article class="merge-card merge-center">
+              <h3>Synthesis</h3>
+              <p id="merge-summary" class="utah-muted">Merge research tiles.</p>
+            </article>
+            <article class="merge-card merge-note">
+              <h3>Bookmarks</h3>
+              <ul class="note-list" id="merge-bookmarks"></ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-welcome" aria-label="Welcome">
+          <div class="welcome-hero">
+            <div class="welcome-crest">V</div>
+            <div>
+              <h1>Welcome to Utah</h1>
+              <p class="hero-sub">Privacy-first · Offline-native · Your truth layer</p>
+            </div>
+          </div>
+          <div class="pipeline">
+            <article class="pipe-card"><h3>Kernel</h3><span class="pipe-tag ok">Ready</span></article>
+            <article class="pipe-card"><h3>AI Stack</h3><span class="pipe-tag" id="w-stack">…</span></article>
+            <article class="pipe-card"><h3>Corpus</h3><p id="w-knowledge">—</p></article>
+            <article class="pipe-card"><h3>Truth</h3><button type="button" class="chip-btn" data-goto="truth">Open</button></article>
+            <article class="pipe-card"><h3>Browse</h3><button type="button" class="chip-btn" data-goto="web">Google →</button></article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="utah-statusbar">
+      <button type="button" class="sb-chip" data-goto="web">Web</button>
+      <button type="button" class="sb-chip" data-goto="truth">Truth</button>
+      <button type="button" class="sb-chip" data-goto="dashboard">Home</button>
+      <span class="sb-spacer"></span>
+      <span class="sb-meta" id="clock">—</span>
+    </footer>
   </div>
 
-  <aside class="utah-truth-hud" id="truth-hud" aria-live="polite">
-    <h2>Truth Guard</h2>
-    <div id="truth-result" class="utah-truth-result utah-muted">
-      Awaiting verification…
+  <div class="spyglass-overlay">
+    <label for="spyglass-open" class="spyglass-scrim"></label>
+    <div class="spyglass-panel glass-card">
+      <h2>Spyglass</h2>
+      <input type="text" id="spyglass-input" placeholder="URL or search bookmarks…" autocomplete="off" />
     </div>
-  </aside>
+  </div>
 
+  <section id="settings-console" class="utah-calibration" aria-label="Calibration Console">
+    <div class="console-panel">
+      <div class="console-header">
+        <h1 class="console-title">Calibration Console</h1>
+        <a href="#" class="console-close">Close</a>
+      </div>
+      <div class="telemetry-grid" id="telemetry-grid">
+        <div class="telemetry-card"><strong id="tel-ollama">—</strong><span>Ollama</span></div>
+        <div class="telemetry-card"><strong id="tel-qdrant">—</strong><span>Qdrant</span></div>
+        <div class="telemetry-card"><strong id="tel-chunks">—</strong><span>Chunks</span></div>
+        <div class="telemetry-bar-wrap"><div class="telemetry-bar" id="tel-bar"></div></div>
+        <p class="telemetry-note" id="tel-note">…</p>
+      </div>
+      <div class="console-actions">
+        <button type="button" class="utah-btn utah-btn-primary" id="bind-zone-btn">+ Zone</button>
+        <button type="button" class="utah-btn" id="refresh-console-btn">Refresh</button>
+      </div>
+      <ul id="zone-list" class="zone-list"></ul>
+    </div>
+  </section>
+
+  <p id="ghost-status-line" class="utah-sr-only" aria-live="polite">Ghost-Link: —</p>
+
+  <script>
+    if ('paintWorklet' in CSS) {
+      CSS.paintWorklet.addModule('fluidic-paint.js').catch(function () {});
+    }
+  </script>
   <script src="transport.js"></script>
+  <script src="browser.js"></script>
+  <script src="sensory-theme.js"></script>
+  <script src="settings.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>

@@ -1,20 +1,57 @@
-//! Utah Browser V1.0 — entry point.
+//! Utah Browser V1.0 — entry point (Sentinel-Core boot).
 
 use std::sync::Arc;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
-use utah_browser::{audio, engine, evolution, AppConfig, AppState};
+use utah_browser::{diagnostics, engine, sentinel, AppConfig, AppState};
 
-fn main() -> anyhow::Result<()> {
+fn main() {
+    diagnostics::prepare_environment();
+    let _instance_guard = match diagnostics::acquire_instance_lock() {
+        Ok(g) => g,
+        Err(e) => {
+            diagnostics::show_fatal("Utah Browser", &e.to_string());
+            std::process::exit(1);
+        }
+    };
+    diagnostics::log_step("Utah Browser process start (Sentinel-Core)");
+
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("PANIC: {info}");
+        diagnostics::record_boot_failure(&msg);
+        diagnostics::show_fatal("Utah Browser crashed", &diagnostics::fatal_message(&msg));
+    }));
+
+    if let Err(e) = run_app() {
+        let msg = format!("{e:#}");
+        diagnostics::record_boot_failure(&msg);
+        diagnostics::show_fatal("Utah Browser", &diagnostics::fatal_message(&msg));
+        std::process::exit(1);
+    }
+}
+
+fn run_app() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("utah_browser=info".parse()?))
         .init();
 
     let config = AppConfig::load()?;
+    diagnostics::log_step(&format!(
+        "config loaded - home: {} evolution: {} sovereign: {}",
+        config.ui.start_url,
+        if config.evolution.enabled { "on" } else { "off" },
+        utah_browser::paths::sovereign_data_root().display()
+    ));
+
     info!(
         "Utah Browser V1.0-GENESIS — knowledge path: {}",
         config.knowledge.path.display()
     );
+
+    let recovery = diagnostics::load_recovery();
+    if recovery.should_use_safe_mode() {
+        diagnostics::log_step("recovery: safe mode will be used for this session");
+    }
 
     let runtime = Arc::new(
         tokio::runtime::Builder::new_multi_thread()
@@ -22,23 +59,10 @@ fn main() -> anyhow::Result<()> {
             .build()?,
     );
 
-    let state = Arc::new(AppState::new(config.clone()));
+    let state = Arc::new(AppState::new(config.clone())?);
 
-    if config.audio.enabled {
-        audio::spawn_audio_listener(config.audio.clone());
-    }
-
-    let proxy_for_evolution = {
-        // Evolution events are logged; optional IPC bridge can be wired via shared proxy later.
-        let _state = state.clone();
-        Box::new(move |ev: utah_browser::ipc::IpcEvent| {
-            if let utah_browser::ipc::IpcEvent::EvolutionProposal { path, summary } = ev {
-                info!("evolution proposal for {path}: {summary}");
-            }
-        }) as evolution::EventCallback
-    };
-
-    evolution::spawn_evolution_daemon(config.clone(), runtime.clone(), proxy_for_evolution);
+    // Sentinel-Core: daemons start only after shell.ready + grace (never during WebView boot).
+    sentinel::spawn_delayed_background_services(config, runtime.clone(), recovery);
 
     engine::run(state, runtime);
     Ok(())

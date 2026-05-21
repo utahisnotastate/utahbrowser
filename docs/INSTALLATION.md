@@ -45,15 +45,28 @@ Running from `scripts\` also works; the installer resolves the project root auto
 
 ---
 
+## Demo vs full install
+
+| Goal | Command | Notes |
+|------|---------|-------|
+| **Stable demo** (evaluators) | `.\scripts\Build-Demo.ps1` | [DEMO.md](DEMO.md), `UtahBrowser.cmd`, safe mode |
+| **Full dev build** | `.\scripts\Build-Standalone.ps1` | Latest `main` features, dual WebView |
+| **Everything + services** | `.\scripts\deploy_sovereign.ps1` | Install + optional Ghost-Link |
+
+---
+
 ## Outputs in `dist/`
 
 | File | Purpose |
 |------|---------|
 | `utah-browser.exe` | The browser |
-| `Launch-UtahBrowser.ps1` | Ensures services, loads env, starts exe |
-| `utah.env.ps1` | `OLLAMA_HOST`, `QDRANT_URL`, optional `UTAH_KNOWLEDGE_PATH` |
-| `health-report.json` | Last health/pull results |
+| **`UtahBrowser.cmd`** | **Recommended launcher** (demo + dev) |
+| `UtahBrowser.exe` | Launcher without space in filename |
+| `Launch-UtahBrowser.ps1` | PowerShell launcher |
+| `DEMO.txt` / `DEMO.md` | Present when built with `Build-Demo.ps1` |
 | `config/`, `assets/`, `scripts/` | Runtime bundle |
+
+**Logs:** `%APPDATA%\UtahBrowser\logs\browser.log` (see [DEMO.md](DEMO.md))
 
 ---
 
@@ -74,8 +87,11 @@ Running from `scripts\` also works; the installer resolves the project root auto
 ## After install
 
 ```powershell
-.\dist\Launch-UtahBrowser.ps1
+cd dist
+.\UtahBrowser.cmd
 ```
+
+Or: `.\dist\Launch-UtahBrowser.ps1` — do **not** use `.\Utah Browser.exe` in PowerShell without quotes.
 
 Or from repo root during development:
 

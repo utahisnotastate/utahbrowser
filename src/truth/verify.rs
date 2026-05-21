@@ -36,13 +36,25 @@ pub async fn verify_statement(
         .search(vector, config.truth.max_context_chunks)
         .await?;
 
-    let best_score = hits.first().map(|(s, _)| *s).unwrap_or(0.0);
+    let mut weighted_hits: Vec<(f32, serde_json::Value)> = hits
+        .into_iter()
+        .map(|(score, payload)| {
+            let w = payload
+                .get("zone_weight")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(1.0) as f32;
+            (score * w.clamp(0.1, 5.0), payload)
+        })
+        .collect();
+    weighted_hits.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    let best_score = weighted_hits.first().map(|(s, _)| *s).unwrap_or(0.0);
     let threshold = config.truth.similarity_threshold;
     let flagged = best_score < threshold;
 
     let mut matched_sources = Vec::new();
     let mut context_snippets = Vec::new();
-    for (score, payload) in &hits {
+    for (score, payload) in &weighted_hits {
         if let Some(src) = payload.get("source").and_then(|v| v.as_str()) {
             if !matched_sources.contains(&src.to_string()) {
                 matched_sources.push(src.to_string());

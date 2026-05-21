@@ -28,11 +28,15 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 
 | Who you are | Start here |
 |-------------|------------|
+| **Demo (stable, easy run)** | **[Demo guide](docs/DEMO.md)** — `UtahBrowser.cmd`, safe mode |
 | Kids & families | [Guide for kids](docs/guides/FOR_KIDS.md) |
 | Everyday users | [Easy start](docs/guides/FOR_EVERYONE.md) |
 | **Installation** | [Install guide](docs/INSTALLATION.md) |
 | **Ollama & Qdrant** | [Services guide](docs/guides/QDRANT_AND_SERVICES.md) |
+| Sovereign stack (dev) | [Sovereign Intelligence Stack](docs/SOVEREIGN_INTELLIGENCE_STACK.md) |
 | Developers & IT | [Technical manual](docs/technical/MANUAL.md) |
+| Launch / crash issues | [Crash on launch report](docs/technical/CRASH_ON_LAUNCH_REPORT.md) |
+| Architecture handoff | [System architecture report](docs/technical/SYSTEM_ARCHITECTURE_REPORT.md) |
 | Build errors (Windows) | [Build troubleshooting](docs/guides/BUILD_TROUBLESHOOTING.md) |
 | All docs | [docs/README.md](docs/README.md) |
 
@@ -48,16 +52,35 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 
 ---
 
-## Quick start (Windows)
+## Quick start — Demo (anyone)
 
-**Prerequisites:** [Rust](https://rustup.rs/), [Ollama](https://ollama.com/). **Docker optional.** Internet once for Qdrant binary download.
+**Stable demo** — single WebView, double-click launcher, no PowerShell quoting issues:
 
 ```powershell
 git clone https://github.com/utahisnotastate/utahbrowser.git
 cd utahbrowser
-.\scripts\install.ps1 -KnowledgePath "C:\path\to\your\notebooks"
-.\dist\Launch-UtahBrowser.ps1
+.\scripts\Build-Demo.ps1
+cd dist
+.\UtahBrowser.cmd
 ```
+
+See **[docs/DEMO.md](docs/DEMO.md)**. Maintainers: **[docs/DEMO_RELEASE.md](docs/DEMO_RELEASE.md)** + tag `v1.0-demo`.
+
+---
+
+## Quick start — Full install (developers)
+
+**Prerequisites:** [Rust](https://rustup.rs/), [Ollama](https://ollama.com/). **Docker optional.**
+
+```powershell
+git clone https://github.com/utahisnotastate/utahbrowser.git
+cd utahbrowser
+.\scripts\deploy_sovereign.ps1 -KnowledgePath "C:\path\to\your\notebooks"
+cd dist
+.\UtahBrowser.cmd
+```
+
+Or classic installer: `.\scripts\install.ps1 -KnowledgePath "C:\path\to\notebooks"`
 
 ---
 
@@ -77,9 +100,11 @@ cd utahbrowser
 | `-ForcePull` | Re-pull Ollama models |
 | `-RepairOnly` | Repair Cargo cache and rebuild |
 
-**Outputs:** `dist/utah-browser.exe`, `Launch-UtahBrowser.ps1`, `health-report.json`, `utah.env.ps1`
+**Outputs:** `dist/utah-browser.exe`, `UtahBrowser.cmd`, `health-report.json`
 
-**Helpers:** `Ensure-Qdrant.ps1`, `Ensure-Services.ps1`, `Repair-BuildEnvironment.ps1`
+**Helpers:** `Build-Demo.ps1`, `Build-Standalone.ps1`, `deploy_sovereign.ps1`, `Ensure-Services.ps1`, `Repair-BuildEnvironment.ps1`
+
+**Logs (runtime):** `%APPDATA%\UtahBrowser\logs\browser.log` (not inside `dist/` during normal use)
 
 **Build failed?** [BUILD_TROUBLESHOOTING.md](docs/guides/BUILD_TROUBLESHOOTING.md)
 
@@ -102,11 +127,13 @@ cd utahbrowser
 ## Project layout
 
 ```
-src/              # Rust: engine, truth, audio, evolution
-assets/ui/        # Shell HTML, Utah.css, transport.js (IPC only)
-config/           # default.toml
-scripts/          # install.ps1, Ensure-*.ps1, kernel/
-docs/             # guides for all audiences
+src/              # Rust: engine, truth, sentinel, vault, ghost_link
+assets/ui/        # Shell HTML, mockup.css, fluidic UI
+config/           # default.toml, demo.toml
+ghost-link/       # Python peripheral daemon
+scripts/          # Build-Demo.ps1, install.ps1, deploy_sovereign.ps1
+docs/             # DEMO.md, technical reports, guides
+urm/              # Optional Nexus orchestrator (Python)
 ```
 
 ---

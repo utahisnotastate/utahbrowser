@@ -1,0 +1,187 @@
+/**
+ * Utah Calibration Console V1.0-ZEO — :target state engine (no JS layout logic).
+ */
+
+#settings-console {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: auto;
+  padding: max(var(--utah-space-md), env(safe-area-inset-top, 0px))
+    var(--utah-space-md)
+    max(var(--utah-space-md), env(safe-area-inset-bottom, 0px));
+}
+
+#settings-console:target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.console-panel {
+  width: min(52rem, 96vw);
+  margin-top: clamp(1rem, 4dvh, 3rem);
+  padding: var(--utah-space-lg);
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius);
+  background: linear-gradient(180deg, #1a2433 0%, #121a24 100%);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--utah-space-md);
+}
+
+.console-title {
+  margin: 0;
+  font-size: var(--utah-font-lg);
+  color: var(--utah-accent);
+}
+
+.console-close {
+  color: var(--utah-muted);
+  text-decoration: none;
+  font-size: var(--utah-font-sm);
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius);
+}
+
+.console-close:hover {
+  color: var(--utah-text);
+  border-color: var(--utah-accent);
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--utah-space-sm);
+  margin-bottom: var(--utah-space-lg);
+}
+
+.telemetry-card {
+  padding: var(--utah-space-sm);
+  border-radius: var(--utah-radius);
+  border: 1px solid var(--utah-border);
+  background: rgba(61, 158, 255, 0.06);
+  text-align: center;
+}
+
+.telemetry-card strong {
+  display: block;
+  font-size: var(--utah-font-lg);
+  color: var(--utah-accent);
+}
+
+.telemetry-card span {
+  font-size: var(--utah-font-xs);
+  color: var(--utah-muted);
+}
+
+.telemetry-bar-wrap {
+  grid-column: 1 / -1;
+  height: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.telemetry-bar {
+  height: 100%;
+  width: var(--telemetry-pct, 40%);
+  background: linear-gradient(90deg, var(--utah-accent), var(--utah-ok));
+  transition: width 400ms ease;
+}
+
+.telemetry-note {
+  grid-column: 1 / -1;
+  font-size: var(--utah-font-xs);
+  color: var(--utah-muted);
+  margin: 0;
+}
+
+.console-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--utah-space-sm);
+  margin-bottom: var(--utah-space-md);
+}
+
+.zone-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.zone-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--utah-space-xs) var(--utah-space-md);
+  padding: var(--utah-space-sm) 0;
+  border-bottom: 1px solid var(--utah-border);
+  align-items: center;
+}
+
+.zone-item:last-child {
+  border-bottom: none;
+}
+
+.zone-meta {
+  font-size: var(--utah-font-xs);
+  color: var(--utah-muted);
+  word-break: break-all;
+}
+
+.zone-health {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.zone-health-healthy {
+  background: var(--utah-ok);
+  box-shadow: 0 0 8px var(--utah-ok);
+}
+
+.zone-health-degraded {
+  background: #e6b800;
+  box-shadow: 0 0 8px #e6b800;
+}
+
+.zone-health-critical {
+  background: var(--utah-warn);
+  box-shadow: 0 0 8px var(--utah-warn);
+}
+
+.zone-health-unknown {
+  background: var(--utah-muted);
+}
+
+.zone-weight {
+  width: 100%;
+  max-width: 12rem;
+  accent-color: var(--utah-accent);
+}
+
+.direct-map-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--utah-space-sm);
+  margin-bottom: var(--utah-space-md);
+  font-size: var(--utah-font-sm);
+}
+
+.direct-map-toggle input {
+  width: 1.1rem;
+  height: 1.1rem;
+}

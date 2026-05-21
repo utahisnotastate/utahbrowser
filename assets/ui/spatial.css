@@ -1,0 +1,164 @@
+/**
+ * Utah Browser UI Kernel — state-driven spatial graph (:has / :target).
+ * Application view state lives in CSS; JS only bridges IPC.
+ */
+
+.utah-spatial-nav {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.utah-spatial-link {
+  font-size: var(--utah-font-xs);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--utah-radius);
+  color: var(--utah-muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.utah-spatial-link:hover,
+.utah-spatial-link:focus-visible {
+  color: var(--utah-accent);
+  border-color: var(--utah-border);
+}
+
+.utah-spatial-link:target {
+  color: var(--utah-text);
+  background: rgba(61, 158, 255, 0.15);
+  border-color: var(--utah-accent);
+}
+
+.utah-view {
+  display: none;
+  position: fixed;
+  z-index: 35;
+  top: var(--utah-chrome-h, 228px);
+  left: 0;
+  right: 0;
+  max-height: min(40vh, 14rem);
+  overflow: auto;
+  padding: var(--utah-space-sm) var(--utah-space-md);
+  background: rgba(11, 15, 20, 0.92);
+  border-bottom: 1px solid var(--utah-border);
+}
+
+/* Home panel only when explicitly selected — no default grey strip on startup */
+body:has(#nav-home:target) #home-view {
+  display: block;
+}
+
+body:has(#nav-bookmarks:target) #bookmarks-view {
+  display: block;
+}
+
+body:has(#nav-bookmarks:target) #home-view {
+  display: none;
+}
+
+body:has(#nav-extensions:target) #extensions-view {
+  display: block;
+}
+
+body:has(#nav-extensions:target) #home-view {
+  display: none;
+}
+
+.utah-view-title {
+  margin: 0 0 var(--utah-space-xs);
+  font-size: var(--utah-font-sm);
+  color: var(--utah-accent);
+}
+
+.utah-spatial-map {
+  position: relative;
+  min-height: 6rem;
+  border-radius: var(--utah-radius);
+  border: 1px dashed var(--utah-border);
+  background: radial-gradient(circle at 50% 50%, rgba(61, 158, 255, 0.08), transparent 70%);
+}
+
+.utah-spatial-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0.25rem 0.5rem;
+  font-size: var(--utah-font-xs);
+  border-radius: var(--utah-radius);
+  background: rgba(18, 26, 36, 0.9);
+  border: 1px solid var(--utah-border);
+  color: var(--utah-accent);
+  cursor: pointer;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.utah-spatial-node:hover {
+  box-shadow: 0 0 12px var(--utah-glow);
+  z-index: 2;
+}
+
+.utah-bookmark-search {
+  flex: 0 0 auto;
+  min-width: 6rem;
+  max-width: 10rem;
+}
+
+.utah-bookmark-search input {
+  width: 100%;
+  font-size: var(--utah-font-xs);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--utah-radius);
+  border: 1px solid var(--utah-border);
+  background: var(--utah-bg);
+  color: var(--utah-text);
+}
+
+.utah-vibe-form {
+  display: grid;
+  gap: var(--utah-space-xs);
+  margin-bottom: var(--utah-space-sm);
+}
+
+.utah-vibe-form input,
+.utah-vibe-form textarea {
+  font-size: var(--utah-font-xs);
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--utah-radius);
+  border: 1px solid var(--utah-border);
+  background: var(--utah-bg);
+  color: var(--utah-text);
+}
+
+.utah-extension-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--utah-font-xs);
+}
+
+.utah-extension-list li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--utah-border);
+}
+
+.utah-hud {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.utah-tab-suspended {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.utah-tab-suspended::after {
+  content: " ◆";
+  font-size: 0.65em;
+  opacity: 0.8;
+}

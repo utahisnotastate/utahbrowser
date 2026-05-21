@@ -14,6 +14,10 @@ pub struct AppConfig {
     pub audio: AudioConfig,
     pub evolution: EvolutionConfig,
     pub ui: UiConfig,
+    #[serde(default)]
+    pub browser: BrowserConfig,
+    #[serde(default)]
+    pub ghost_link: GhostLinkConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -65,11 +69,51 @@ pub struct UiConfig {
     pub window_title: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct BrowserConfig {
+    /// Qdrant collection for intention snapshots (semantic bookmarks).
+    pub bookmarks_collection: String,
+    /// Serialize inactive tabs to vault cache on switch.
+    pub suspend_on_switch: bool,
+    /// Queue predictive prefetch hints (Time-Loop scaffold).
+    pub prefetch_enabled: bool,
+}
+
+impl Default for BrowserConfig {
+    fn default() -> Self {
+        Self {
+            bookmarks_collection: "utah_bookmarks".into(),
+            suspend_on_switch: true,
+            prefetch_enabled: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GhostLinkConfig {
+    pub enabled: bool,
+    pub entropy_threshold: f32,
+    pub frame_interval_ms: u32,
+    pub buffer_seconds: f32,
+    pub vision_model: String,
+}
+
+impl Default for GhostLinkConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            entropy_threshold: 0.12,
+            frame_interval_ms: 500,
+            buffer_seconds: 5.0,
+            vision_model: "llava".into(),
+        }
+    }
+}
+
 impl AppConfig {
     /// Load configuration from disk, applying environment overrides.
     pub fn load() -> Result<Self> {
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let config_path = manifest_dir.join("config/default.toml");
+        let config_path = crate::paths::config_path();
         let raw = std::fs::read_to_string(&config_path)
             .with_context(|| format!("read config at {}", config_path.display()))?;
         let mut config: AppConfig = toml::from_str(&raw)
@@ -85,13 +129,26 @@ impl AppConfig {
             config.qdrant.url = url;
         }
 
+        let install = crate::paths::install_root();
+        config.evolution.watch_paths = config
+            .evolution
+            .watch_paths
+            .iter()
+            .map(|p| {
+                if p.is_absolute() {
+                    p.clone()
+                } else {
+                    install.join(p)
+                }
+            })
+            .collect();
+
         Ok(config)
     }
 
-    /// Resolved proposals directory (created on demand).
+    /// Resolved proposals directory under sovereign data (never install root).
     pub fn proposals_dir(&self) -> PathBuf {
-        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        base.join(&self.evolution.proposals_dir)
+        crate::paths::evolution_proposals_dir()
     }
 }
 

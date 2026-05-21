@@ -9,6 +9,11 @@ param(
     [switch]$SkipQdrantStart,
     [switch]$ForcePull,
     [switch]$RepairOnly,
+    [switch]$InstallGhostLink,
+    [switch]$GhostLinkStartup,
+    [switch]$InstallURM,
+    [switch]$UrmStartup,
+    [switch]$UrmProgramData,
     [int]$HealthTimeoutSec = 8
 )
 
@@ -25,6 +30,16 @@ function Write-Step { param([string]$Msg) Write-Host "`n==> $Msg" -ForegroundCol
 function Write-Warn { param([string]$Msg) Write-Host "WARN: $Msg" -ForegroundColor Yellow }
 function Write-Err  { param([string]$Msg) Write-Host "ERROR: $Msg" -ForegroundColor Red }
 
+function Initialize-UtahVault {
+    $vault = Join-Path $env:USERPROFILE '.utah_browser'
+    foreach ($sub in @('vault', 'cache\tabs', 'extensions', 'logs')) {
+        $p = Join-Path $vault $sub
+        New-Item -ItemType Directory -Force -Path $p | Out-Null
+    }
+    Write-Host "  [OK] Vault seeded at $vault" -ForegroundColor DarkGreen
+    return $vault
+}
+
 Push-Location $Root
 try {
     if ($RepairOnly) {
@@ -39,6 +54,26 @@ try {
 
     $ConfigPath = Join-Path $Root 'config\default.toml'
     $cfg = Read-UtahConfig -ConfigPath $ConfigPath
+
+    Write-Step 'Zero-Click Kernel - vault manifestation'
+    $null = Initialize-UtahVault
+
+    if ($InstallGhostLink) {
+        Write-Step 'Ghost-Link sensory daemon'
+        $ghostInstaller = Join-Path $Root 'scripts\install_ghost_link.ps1'
+        $ghostArgs = @{ StartNow = $true }
+        if ($GhostLinkStartup) { $ghostArgs['RegisterStartup'] = $true }
+        & $ghostInstaller @ghostArgs
+    }
+
+    if ($InstallURM) {
+        Write-Step 'Utah Unified Reality Manifold (Nexus)'
+        $urmInstaller = Join-Path $Root 'scripts\install_urm.ps1'
+        $urmArgs = @{ StartNow = $true; StartGhostLink = $true }
+        if ($UrmStartup) { $urmArgs['RegisterStartup'] = $true }
+        if ($UrmProgramData) { $urmArgs['UseProgramData'] = $true }
+        & $urmInstaller @urmArgs
+    }
 
     $report = [ordered]@{
         timestamp_utc = (Get-Date).ToUniversalTime().ToString('o')
@@ -76,6 +111,11 @@ try {
             }
             else {
                 Write-Warn $col.Message
+            }
+            $bmCol = 'utah_bookmarks'
+            $bm = Ensure-QdrantCollection -BaseUrl $cfg.QdrantUrl -Collection $bmCol -VectorSize $cfg.QdrantVectorSize
+            if ($bm.Ok) {
+                Write-Host "  [OK] Semantic bookmarks: $bmCol" -ForegroundColor DarkGreen
             }
         }
         else {
@@ -163,6 +203,14 @@ See docs/guides/BUILD_TROUBLESHOOTING.md
     }
 
     Copy-Item $Exe (Join-Path $OutDir 'utah-browser.exe') -Force
+    $LaunchExe = Join-Path $Root 'target\release\utah-launch.exe'
+    if (Test-Path $LaunchExe) {
+        Copy-Item $LaunchExe (Join-Path $OutDir 'Utah Browser.exe') -Force
+        Write-Host "  Launcher:    $OutDir\Utah Browser.exe  (double-click, no CLI)" -ForegroundColor Cyan
+    }
+    else {
+        Write-Warn 'utah-launch.exe not built — run: cargo build --release --bin utah-launch'
+    }
     Copy-Item (Join-Path $Root 'config') (Join-Path $OutDir 'config') -Recurse -Force
     Copy-Item (Join-Path $Root 'assets') (Join-Path $OutDir 'assets') -Recurse -Force
     Copy-Item (Join-Path $Root 'scripts\kernel') (Join-Path $OutDir 'scripts\kernel') -Recurse -Force
@@ -210,7 +258,8 @@ if (Test-Path `$ensure) {
     Write-Step 'Zero-Click Kernel complete'
     Write-Host "  Dist:        $OutDir"
     Write-Host "  Health JSON: $healthPath"
-    Write-Host "  Launch:      .\dist\Launch-UtahBrowser.ps1"
+    Write-Host "  Launch:      .\dist\Utah Browser.exe"
+    Write-Host "  (or)         .\dist\Launch-UtahBrowser.ps1"
     Write-Host ""
 
     $ready = $true

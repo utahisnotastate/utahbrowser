@@ -1,0 +1,231 @@
+/**
+ * Browser chrome — tabs, bookmarks, always-visible URL bar.
+ * Shell WebView is a fixed-height strip; page content is the native content WebView below.
+ */
+
+.utah-chrome-only {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.utah-chrome-only .utah-chrome {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.utah-chrome-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--utah-space-xs);
+  width: 100%;
+}
+
+.utah-chrome-row {
+  display: flex;
+  align-items: center;
+  gap: var(--utah-space-xs);
+  min-width: 0;
+}
+
+.utah-chrome-top {
+  min-height: 2rem;
+}
+
+.utah-brand-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--utah-space-xs);
+  flex-shrink: 0;
+}
+
+.utah-brand-compact .utah-title {
+  font-size: var(--utah-font-sm);
+  font-weight: 600;
+}
+
+.utah-tabs-wrap {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.utah-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+.utah-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 12rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius) var(--utah-radius) 0 0;
+  background: rgba(18, 26, 36, 0.85);
+  color: var(--utah-muted);
+  font-size: var(--utah-font-xs);
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.utah-tab:hover {
+  color: var(--utah-text);
+  border-color: var(--utah-accent);
+}
+
+.utah-tab-active {
+  background: var(--utah-surface);
+  color: var(--utah-text);
+  border-bottom-color: var(--utah-surface);
+  box-shadow: inset 0 2px 0 var(--utah-accent);
+}
+
+.utah-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.utah-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.utah-tab-close:hover {
+  opacity: 1;
+  background: rgba(255, 107, 74, 0.25);
+}
+
+.utah-tab-new {
+  max-width: 2rem;
+  justify-content: center;
+  border-radius: var(--utah-radius);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.utah-bookmarks-row {
+  min-height: 1.75rem;
+}
+
+.utah-bookmarks {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.utah-bookmark {
+  flex-shrink: 0;
+  max-width: 10rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--utah-radius);
+  background: rgba(61, 158, 255, 0.08);
+  color: var(--utah-accent);
+  font-size: var(--utah-font-xs);
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utah-bookmark:hover {
+  background: rgba(61, 158, 255, 0.18);
+  border-color: var(--utah-border);
+}
+
+.utah-nav-row {
+  gap: var(--utah-space-sm);
+}
+
+.utah-nav-controls {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.utah-btn-icon {
+  min-width: var(--utah-touch);
+  min-height: 2.25rem;
+  padding: 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.utah-chrome-only .utah-nav-form {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: var(--utah-space-xs);
+}
+
+.utah-chrome-only .utah-url {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.utah-chrome-only .utah-toolbar {
+  flex-shrink: 0;
+}
+
+/* Tools overlay within chrome strip */
+.utah-chrome-only .utah-sidepanel {
+  top: 100%;
+  max-height: min(50vh, 16rem);
+  width: min(100%, 22rem);
+  transform: translateY(-110%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 180ms ease, opacity 180ms ease, visibility 180ms;
+}
+
+.utah-chrome-only:has(#panel-tools:checked) .utah-sidepanel {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.utah-chrome-only .utah-truth-hud {
+  top: 100%;
+  bottom: auto;
+  right: var(--utah-space-sm);
+  left: auto;
+  max-height: min(40vh, 12rem);
+  transform: translateY(-110%);
+}
+
+.utah-chrome-only:has(#truth-hud-toggle:checked) .utah-truth-hud {
+  transform: translateY(0.5rem);
+}

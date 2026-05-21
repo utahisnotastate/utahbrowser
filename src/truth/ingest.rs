@@ -10,6 +10,39 @@ pub struct Document {
     pub text: String,
 }
 
+/// Walk a single directory and load supported file types.
+pub fn load_documents_from_path(root: &Path, extensions: &[String]) -> Result<Vec<Document>> {
+    if !root.exists() {
+        tracing::warn!("zone path does not exist: {}", root.display());
+        return Ok(Vec::new());
+    }
+    let mut docs = Vec::new();
+    for entry in walkdir_flat(root)? {
+        let ext = entry
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !extensions.iter().any(|e| e == &ext) {
+            continue;
+        }
+        let text = match ext.as_str() {
+            "pdf" => load_pdf(&entry)?,
+            "md" | "markdown" => load_text(&entry)?,
+            "txt" => load_text(&entry)?,
+            _ => continue,
+        };
+        if text.trim().is_empty() {
+            continue;
+        }
+        docs.push(Document {
+            source: entry.to_string_lossy().into_owned(),
+            text,
+        });
+    }
+    Ok(docs)
+}
+
 /// Walk the knowledge path and load supported file types.
 pub fn load_documents(knowledge: &KnowledgeConfig) -> Result<Vec<Document>> {
     let root = &knowledge.path;

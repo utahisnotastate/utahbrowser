@@ -6,8 +6,17 @@ description = "Privacy-first offline browser with local truth verification"
 license = "MIT"
 rust-version = "1.75"
 
+[[bin]]
+name = "utah-browser"
+path = "src/main.rs"
+
+[[bin]]
+name = "utah-launch"
+path = "src/bin/utah_launch.rs"
+
 [dependencies]
 anyhow = "1"
+bincode = "1"
 cpal = "0.15"
 dirs = "6"
 glob = "0.3"
@@ -17,6 +26,7 @@ notify = "8"
 pdf-extract = "0.7"
 pulldown-cmark = "0.13"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -26,6 +36,7 @@ toml = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+wasmi = "0.32"
 wry = { version = "0.50", features = ["protocol"] }
 
 [profile.release]

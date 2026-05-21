@@ -5,8 +5,11 @@
 
 # --- Utah Browser build outputs ---
 /dist/
+/release/*.zip
 /evolution/proposals/
 .utah-browser/
+.cursorrules
+/mockups/
 
 # --- Local env & secrets (never commit) ---
 .env

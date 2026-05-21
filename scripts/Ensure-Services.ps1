@@ -7,8 +7,20 @@ if (-not $ProjectRoot) {
 }
 
 $KernelDir = Join-Path $ProjectRoot 'scripts\kernel'
-. (Join-Path $KernelDir 'Read-UtahConfig.ps1')
-. (Join-Path $KernelDir 'Health.ps1')
+$readCfg = Join-Path $KernelDir 'Read-UtahConfig.ps1'
+$health = Join-Path $KernelDir 'Health.ps1'
+if (-not (Test-Path $readCfg) -or -not (Test-Path $health)) {
+    Write-Host "  [ERROR] Missing scripts\kernel (Read-UtahConfig.ps1 / Health.ps1)." -ForegroundColor Red
+    Write-Host '  Re-run: .\scripts\Build-Standalone.ps1  (or copy scripts\kernel into dist\scripts\kernel)' -ForegroundColor Yellow
+    exit 1
+}
+. $readCfg
+. $health
+if (-not (Get-Command Ensure-QdrantReady -ErrorAction SilentlyContinue)) {
+    Write-Host '  [ERROR] Health.ps1 is outdated (Ensure-QdrantReady missing).' -ForegroundColor Red
+    Write-Host '  Re-run: .\scripts\Build-Standalone.ps1  (copies scripts\kernel into dist)' -ForegroundColor Yellow
+    exit 1
+}
 
 $cfg = Read-UtahConfig -ConfigPath (Join-Path $ProjectRoot 'config\default.toml')
 

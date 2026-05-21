@@ -1,0 +1,39 @@
+/* Utah Unified Reality Manifold — Nexus overlay banner */
+
+.urm-banner {
+  position: fixed;
+  top: var(--utah-chrome-h, 260px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: var(--utah-space-xs) var(--utah-space-md);
+  font-size: var(--utah-font-xs);
+  text-align: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--utah-border);
+}
+
+.urm-banner[hidden] {
+  display: none !important;
+}
+
+.urm-warn {
+  background: rgba(255, 107, 74, 0.2);
+  color: var(--utah-warn);
+}
+
+.urm-info {
+  background: rgba(61, 158, 255, 0.15);
+  color: var(--utah-accent);
+}
+
+.urm-ok {
+  background: rgba(61, 214, 140, 0.12);
+  color: var(--utah-ok);
+}
+
+.urm-status-line {
+  font-size: var(--utah-font-xs);
+  margin: 0.25rem 0 0;
+}

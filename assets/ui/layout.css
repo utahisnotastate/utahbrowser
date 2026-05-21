@@ -4,7 +4,7 @@
  */
 
 :root {
-  --utah-chrome-h: clamp(3.25rem, 10dvh, 5rem);
+  --utah-chrome-h: 260px;
   --utah-panel-w: clamp(14rem, 28vw, 22rem);
   --utah-hud-w: clamp(14rem, min(92vw, 26rem), 32rem);
   --utah-hud-max-h: min(45dvh, 20rem);

@@ -1,0 +1,790 @@
+/**
+ * Utah Browser — responsive shell (web strip + app dashboard).
+ * Chrome strip height must match CHROME_STRIP_H in engine/mod.rs (112px).
+ */
+
+:root {
+  --chrome-strip-h: 112px;
+  --utah-bg: #03060c;
+  --utah-surface: rgba(12, 18, 30, 0.92);
+  --utah-border: rgba(212, 175, 90, 0.28);
+  --utah-text: #f6f2e8;
+  --utah-muted: #8fa3bc;
+  --utah-accent: #d4af37;
+  --utah-accent-bright: #f5d67a;
+  --utah-cyan: #5ecfff;
+  --utah-warn: #ff6b4a;
+  --utah-ok: #3dd68c;
+  --utah-glow: rgba(212, 175, 55, 0.4);
+  --sidebar-w: clamp(13rem, 18vw, 16rem);
+  --statusbar-h: 2.25rem;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font-display: "Segoe UI Variable", "Segoe UI", Georgia, serif;
+  --font-ui: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+html,
+body.utah-app {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font-ui);
+  background: var(--utah-bg);
+  color: var(--utah-text);
+  overflow: hidden;
+}
+
+.utah-view-input,
+.utah-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+/* ========== Browser chrome strip (native companion, ~112px tall) ========== */
+
+.utah-browser-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  min-height: var(--chrome-strip-h);
+  max-height: var(--chrome-strip-h);
+  padding: 0.35rem 0.65rem;
+  padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
+  background: linear-gradient(180deg, #0f1828 0%, #0a1018 100%);
+  border-bottom: 1px solid var(--utah-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.chrome-menu-btn {
+  display: none;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border: 1px solid var(--utah-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--utah-accent-bright);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.chrome-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.chrome-brand .brand-mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #0a1018;
+  background: linear-gradient(135deg, var(--utah-accent-bright), var(--utah-accent));
+  border-radius: 6px;
+  box-shadow: 0 0 12px var(--utah-glow);
+}
+
+.chrome-brand .brand-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--utah-accent-bright);
+}
+
+.chrome-tabs-wrap {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 42%;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.chrome-nav {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.chrome-url {
+  flex: 1 1 10rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.chrome-url .utah-url {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 90, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--utah-text);
+  font: inherit;
+  font-size: 0.85rem;
+  transition: box-shadow 200ms var(--ease), border-color 200ms;
+}
+
+.chrome-url .utah-url:focus {
+  outline: none;
+  border-color: var(--utah-accent);
+  box-shadow: 0 0 0 2px var(--utah-glow);
+}
+
+.chrome-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.tb-btn {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(20, 30, 48, 0.85);
+  color: var(--utah-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 120ms, box-shadow 180ms, border-color 180ms;
+}
+
+.tb-btn:hover {
+  border-color: var(--utah-border);
+  box-shadow: 0 0 12px var(--utah-glow);
+}
+
+.tb-btn:active {
+  transform: scale(0.96);
+}
+
+.tb-go {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.35), rgba(100, 75, 25, 0.2));
+  color: var(--utah-accent-bright);
+}
+
+.url-shield {
+  color: var(--utah-accent);
+  flex-shrink: 0;
+}
+
+.utah-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  min-width: 0;
+}
+
+.utah-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 9rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 14, 24, 0.9);
+  color: var(--utah-muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: color 180ms, background 180ms, box-shadow 180ms;
+}
+
+.utah-tab-active {
+  color: var(--utah-text);
+  background: rgba(212, 175, 55, 0.15);
+  border-color: var(--utah-border);
+  box-shadow: inset 0 2px 0 var(--utah-accent);
+}
+
+.utah-tab-new {
+  max-width: 1.75rem;
+  justify-content: center;
+}
+
+/* ========== App shell (full window when not browsing) ========== */
+
+.utah-bg-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 10% 0%, rgba(212, 175, 55, 0.07), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 90% 90%, rgba(94, 207, 255, 0.05), transparent 45%);
+}
+
+body.utah-mode-web .utah-shell-app {
+  display: none;
+}
+
+body.utah-mode-app .utah-shell-app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--statusbar-h);
+  grid-template-areas:
+    "sidebar main"
+    "sidebar status";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  height: 100%;
+}
+
+.utah-sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  padding: var(--utah-space-md) var(--utah-space-sm);
+  background: linear-gradient(180deg, rgba(8, 14, 26, 0.98), rgba(4, 8, 14, 0.99));
+  border-right: 1px solid var(--utah-border);
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--utah-space-sm);
+  margin-bottom: var(--utah-space-lg);
+}
+
+.sidebar-brand .brand-mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--utah-accent-bright), var(--utah-accent));
+  color: #0a1018;
+}
+
+.brand-workspace {
+  display: block;
+  font-size: var(--utah-font-xs);
+  color: var(--utah-muted);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  color: var(--utah-muted);
+  font-size: var(--utah-font-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: background 200ms var(--ease), color 200ms, box-shadow 200ms;
+}
+
+.nav-item:hover {
+  color: var(--utah-accent-bright);
+  border-color: rgba(212, 175, 90, 0.2);
+}
+
+body:has(#view-dashboard:checked) [for="view-dashboard"],
+body:has(#view-web:checked) [for="view-web"],
+body:has(#view-truth:checked) [for="view-truth"],
+body:has(#view-merge:checked) [for="view-merge"],
+body:has(#view-welcome:checked) [for="view-welcome"] {
+  color: var(--utah-text);
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.2), transparent);
+  border-color: var(--utah-border);
+  box-shadow: inset 3px 0 0 var(--utah-accent);
+}
+
+.sidebar-status {
+  margin-top: auto;
+  padding-top: var(--utah-space-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.status-pill {
+  font-size: var(--utah-font-xs);
+  margin: 0 0 0.5rem;
+}
+
+.dot {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  background: var(--utah-ok);
+  box-shadow: 0 0 6px var(--utah-ok);
+}
+
+.vault-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.vault-fill {
+  height: 100%;
+  width: 66%;
+  background: linear-gradient(90deg, var(--utah-accent), var(--utah-accent-bright));
+}
+
+.utah-main {
+  grid-area: main;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.utah-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--utah-space-md);
+  scroll-behavior: smooth;
+}
+
+.utah-statusbar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--utah-space-sm);
+  padding: 0 var(--utah-space-md);
+  background: rgba(6, 10, 16, 0.95);
+  border-top: 1px solid var(--utah-border);
+  font-size: var(--utah-font-xs);
+  color: var(--utah-muted);
+}
+
+.sb-spacer {
+  flex: 1;
+}
+
+.sb-chip {
+  border: none;
+  background: transparent;
+  color: var(--utah-muted);
+  font: inherit;
+  font-size: var(--utah-font-xs);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  transition: color 180ms, box-shadow 180ms;
+}
+
+.sb-chip:hover {
+  color: var(--utah-accent-bright);
+  box-shadow: 0 0 10px var(--utah-glow);
+}
+
+/* ========== Views ========== */
+
+.panel-view {
+  display: none;
+  animation: view-in 400ms var(--ease);
+}
+
+body:has(#view-dashboard:checked) .panel-dashboard,
+body:has(#view-web:checked) .panel-web,
+body:has(#view-truth:checked) .panel-truth,
+body:has(#view-merge:checked) .panel-merge,
+body:has(#view-welcome:checked) .panel-welcome {
+  display: block;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.panel-hero h1,
+.merge-hero h1,
+.welcome-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  color: var(--utah-accent-bright);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.hero-sub {
+  color: var(--utah-muted);
+  font-size: var(--utah-font-sm);
+  margin: 0.25rem 0 0.75rem;
+}
+
+/* ========== Dashboard grid (responsive) ========== */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--utah-space-md);
+  align-content: start;
+}
+
+.glass-card {
+  padding: var(--utah-space-md);
+  background: var(--utah-surface);
+  border: 1px solid var(--utah-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  transition: transform 280ms var(--ease), box-shadow 280ms;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px var(--utah-glow);
+}
+
+.glass-card h2,
+.glass-card h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: var(--utah-font-sm);
+  color: var(--utah-accent-bright);
+}
+
+.chip-btn,
+.btn-gold {
+  display: inline-flex;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--utah-border);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.28), rgba(80, 60, 20, 0.15));
+  color: var(--utah-accent-bright);
+  font: inherit;
+  font-size: var(--utah-font-xs);
+  cursor: pointer;
+  transition: box-shadow 200ms, transform 120ms;
+}
+
+.chip-btn:hover,
+.btn-gold:hover {
+  box-shadow: 0 0 16px var(--utah-glow);
+  transform: translateY(-1px);
+}
+
+.launch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.launch-tile {
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--utah-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--utah-text);
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow 200ms;
+}
+
+.launch-tile:hover {
+  box-shadow: 0 0 14px var(--utah-glow);
+}
+
+.graph-canvas {
+  position: relative;
+  min-height: 8rem;
+  border-radius: 8px;
+  border: 1px dashed rgba(212, 175, 90, 0.2);
+  background: radial-gradient(circle at 50% 50%, rgba(94, 207, 255, 0.06), transparent 70%);
+}
+
+.utah-spatial-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--utah-border);
+  background: rgba(10, 16, 28, 0.95);
+  font-size: 0.65rem;
+  cursor: pointer;
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-list .utah-bookmark,
+.corpus-list li {
+  font-size: var(--utah-font-xs);
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#bookmark-bar .utah-bookmark {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: rgba(94, 207, 255, 0.06);
+  color: var(--utah-cyan);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Truth / merge / welcome */
+
+.truth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--utah-space-md);
+}
+
+.truth-graph-svg {
+  width: 100%;
+  max-height: 14rem;
+}
+
+.graph-node-center {
+  fill: var(--utah-warn);
+}
+
+.merge-stage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--utah-space-md);
+}
+
+.merge-card {
+  padding: var(--utah-space-md);
+  border-radius: 12px;
+  border: 1px solid var(--utah-border);
+  background: var(--utah-surface);
+}
+
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--utah-space-md);
+}
+
+.pipe-card {
+  flex: 1 1 10rem;
+  padding: var(--utah-space-md);
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid var(--utah-border);
+  background: var(--utah-surface);
+}
+
+.pipe-tag.ok {
+  color: var(--utah-ok);
+}
+
+.welcome-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--utah-space-lg);
+  align-items: center;
+  margin-bottom: var(--utah-space-lg);
+}
+
+.welcome-crest {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  background: linear-gradient(135deg, #8b1538, #4a0a18);
+  border: 2px solid var(--utah-accent);
+  box-shadow: 0 0 24px var(--utah-glow);
+}
+
+.utah-verify-form textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--utah-border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--utah-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.verdict-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 107, 74, 0.2);
+  color: var(--utah-warn);
+  font-size: var(--utah-font-xs);
+}
+
+.verdict-badge.ok {
+  background: rgba(61, 214, 140, 0.15);
+  color: var(--utah-ok);
+}
+
+/* Spyglass */
+
+.spyglass-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 220ms, visibility 220ms;
+}
+
+body:has(#spyglass-open:checked) .spyglass-overlay {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.spyglass-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+}
+
+.spyglass-panel {
+  position: relative;
+  width: min(28rem, 92vw);
+  padding: var(--utah-space-lg);
+  z-index: 1;
+}
+
+.spyglass-panel input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--utah-border);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--utah-text);
+  font: inherit;
+}
+
+#settings-console {
+  z-index: 100001;
+}
+
+/* ========== Mobile / narrow ========== */
+
+@media (max-width: 52rem) {
+  .chrome-tabs-wrap {
+    max-width: 100%;
+    order: 10;
+    flex: 1 1 100%;
+  }
+
+  .chrome-menu-btn {
+    display: inline-flex;
+  }
+
+  body.utah-mode-app .utah-shell-app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "status";
+  }
+
+  body.utah-mode-app:has(#sidebar-drawer:checked) .utah-shell-app {
+    grid-template-columns: min(85vw, 16rem) 1fr;
+    grid-template-areas:
+      "sidebar main"
+      "sidebar status";
+  }
+
+  .sidebar-scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+  }
+
+  body.utah-mode-app:has(#sidebar-drawer:checked) .sidebar-scrim {
+    display: block;
+  }
+
+  .utah-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: var(--statusbar-h);
+    width: min(85vw, 16rem);
+    z-index: 95;
+    transform: translateX(-105%);
+    transition: transform 280ms var(--ease);
+  }
+
+  body.utah-mode-app:has(#sidebar-drawer:checked) .utah-sidebar {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 36rem) {
+  .utah-browser-chrome {
+    --chrome-strip-h: auto;
+    max-height: none;
+    min-height: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .chrome-brand .brand-name {
+    display: none;
+  }
+
+  .chrome-url {
+    flex: 1 1 100%;
+    order: 5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-view,
+  .glass-card,
+  .utah-tab {
+    animation: none !important;
+    transition: none !important;
+  }
+}

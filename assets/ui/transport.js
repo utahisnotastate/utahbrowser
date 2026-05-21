@@ -36,18 +36,9 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var text = document.getElementById('verify-text').value;
+      var card = form.closest('.truth-verify-card');
+      if (card) card.classList.add('utah-verifying');
       ensureThen('verify_text', { text: text });
-    });
-  }
-
-  var nav = document.querySelector('.utah-nav-form');
-  if (nav) {
-    nav.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var url = document.getElementById('url').value;
-      var frame = document.getElementById('utah-page');
-      if (frame) frame.src = url;
-      send('navigate', { url: url });
     });
   }
 
@@ -60,13 +51,14 @@
       set('st-chunks', String(d.chunks_indexed ?? 0));
     }
     if (d.event === 'verify_result') {
+      var card = document.querySelector('.truth-verify-card');
+      if (card) card.classList.remove('utah-verifying');
       var el = document.getElementById('truth-result');
-      var hud = document.getElementById('truth-hud-toggle');
       if (el) {
         el.className = 'utah-truth-result ' + (d.flagged ? 'utah-flagged' : 'utah-ok');
         el.textContent = d.summary || '';
       }
-      if (hud && d.flagged) hud.checked = true;
+      if (window.utahGotoView) window.utahGotoView('truth');
     }
     if (d.event === 'ingest_progress') {
       set('st-chunks', d.message || '');

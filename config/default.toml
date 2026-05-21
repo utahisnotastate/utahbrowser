@@ -24,15 +24,34 @@ chunk_overlap = 120
 max_context_chunks = 6
 
 [audio]
-enabled = true
+enabled = false
 sample_rate_hint = 16000
 
 [evolution]
-enabled = true
-watch_paths = ["C:/code/utahbrowser"]
-debounce_ms = 2000
+# Off by default — Sentinel-Core starts daemons only after shell.ready + 5s grace.
+# Proposals and evolution.log live under %APPDATA%/UtahBrowser (never dist/).
+enabled = false
+watch_paths = ["src"]
+debounce_ms = 5000
 proposals_dir = "evolution/proposals"
 
 [ui]
-start_url = "https://example.com"
-window_title = "Utah Browser // V1.0-GENESIS"
+start_url = "https://www.google.com"
+window_title = "Utah Browser // V1.0-GENESIS // OMEGA-23"
+
+[browser]
+bookmarks_collection = "utah_bookmarks"
+suspend_on_switch = true
+prefetch_enabled = true
+
+[ghost_link]
+enabled = false
+entropy_threshold = 0.12
+frame_interval_ms = 500
+buffer_seconds = 5.0
+vision_model = "llava"
+
+[urm]
+enabled = true
+poll_hz = 10.0
+snapshot_interval_sec = 60.0

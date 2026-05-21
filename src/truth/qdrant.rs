@@ -36,6 +36,16 @@ struct ScoredPoint {
 }
 
 impl QdrantClient {
+    /// Use a different collection (e.g. semantic bookmarks graph).
+    pub fn with_collection(&self, collection: impl Into<String>) -> Self {
+        let mut cfg = self.config.clone();
+        cfg.collection = collection.into();
+        Self {
+            http: self.http.clone(),
+            config: cfg,
+        }
+    }
+
     pub fn new(config: QdrantConfig) -> Self {
         let http = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -143,5 +153,19 @@ impl QdrantClient {
             .into_iter()
             .filter_map(|p| p.payload.map(|pl| (p.score, pl)))
             .collect())
+    }
+
+    pub async fn collection_points(&self) -> Result<u64> {
+        let url = format!("{}/collections/{}", self.base(), self.config.collection);
+        #[derive(Deserialize)]
+        struct Resp {
+            result: Detail,
+        }
+        #[derive(Deserialize)]
+        struct Detail {
+            points_count: u64,
+        }
+        let resp: Resp = self.http.get(&url).send().await?.error_for_status()?.json().await?;
+        Ok(resp.result.points_count)
     }
 }

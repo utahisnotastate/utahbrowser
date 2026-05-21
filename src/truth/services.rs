@@ -9,26 +9,9 @@ use tokio::time::sleep;
 
 /// Resolve `scripts/Ensure-Qdrant.ps1` next to the executable or project root.
 fn ensure_qdrant_script() -> Option<PathBuf> {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let dist = dir.join("scripts").join("Ensure-Qdrant.ps1");
-            if dist.is_file() {
-                return Some(dist);
-            }
-            let dev = dir
-                .join("..")
-                .join("..")
-                .join("scripts")
-                .join("Ensure-Qdrant.ps1");
-            if dev.is_file() {
-                return dev.canonicalize().ok();
-            }
-        }
-    }
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest.join("scripts").join("Ensure-Qdrant.ps1");
-    if root.is_file() {
-        return Some(root);
+    let script = crate::paths::scripts_dir().join("Ensure-Qdrant.ps1");
+    if script.is_file() {
+        return Some(script);
     }
     None
 }
@@ -41,9 +24,7 @@ fn project_root_from_script(script: &Path) -> Option<PathBuf> {
 fn spawn_ensure_qdrant_script() -> Result<()> {
     let script = ensure_qdrant_script()
         .context("Ensure-Qdrant.ps1 not found — run install.ps1 or Launch-UtahBrowser.ps1")?;
-    let root = project_root_from_script(&script).unwrap_or_else(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    });
+    let root = project_root_from_script(&script).unwrap_or_else(crate::paths::install_root);
 
     tracing::info!("Qdrant offline — running Ensure-Qdrant.ps1");
     let status = std::process::Command::new("powershell")
