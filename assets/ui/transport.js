@@ -1,6 +1,5 @@
 /**
  * Utah Browser transport layer — IPC bridge only (not UI logic).
- * UI state is driven by Utah.css (:target, checkbox peers).
  */
 (function () {
   function send(cmd, extra) {
@@ -8,9 +7,27 @@
     if (window.utahSend) window.utahSend(payload);
   }
 
+  function ensureThen(cmd, extra) {
+    send('ensure_services');
+    var handler = function (ev) {
+      var d = ev.detail || {};
+      if (d.event === 'status' || d.event === 'error') {
+        window.removeEventListener('utah-ipc', handler);
+        if (d.event === 'error') return;
+        send(cmd, extra);
+      }
+    };
+    window.addEventListener('utah-ipc', handler);
+  }
+
   document.querySelectorAll('[data-utah-cmd]').forEach(function (btn) {
+    var cmd = btn.getAttribute('data-utah-cmd');
     btn.addEventListener('click', function () {
-      send(btn.getAttribute('data-utah-cmd'));
+      if (cmd === 'get_status') {
+        send('get_status');
+      } else {
+        ensureThen(cmd);
+      }
     });
   });
 
@@ -19,7 +36,7 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var text = document.getElementById('verify-text').value;
-      send('verify_text', { text: text });
+      ensureThen('verify_text', { text: text });
     });
   }
 
@@ -60,6 +77,7 @@
         r.className = 'utah-truth-result utah-flagged';
         r.textContent = d.message;
       }
+      set('st-qdrant', 'offline');
     }
   });
 
@@ -68,5 +86,5 @@
     if (n) n.textContent = text;
   }
 
-  send('get_status');
+  ensureThen('get_status');
 })();

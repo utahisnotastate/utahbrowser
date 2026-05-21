@@ -80,7 +80,7 @@ function Test-QdrantHealth {
 
     return [PSCustomObject]@{
         Ok      = $false
-        Message = "Qdrant unreachable at $base - start Docker Desktop, then: docker run -d -p 6333:6333 --name utah-qdrant qdrant/qdrant"
+        Message = "Qdrant unreachable at $base"
         Url     = $base
     }
 }
@@ -108,7 +108,7 @@ function Start-QdrantDocker {
     param(
         [string]$ContainerName = 'utah-qdrant',
         [string]$BaseUrl = 'http://127.0.0.1:6333',
-        [int]$WaitSeconds = 45
+        [int]$WaitSeconds = 60
     )
 
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -122,23 +122,29 @@ function Start-QdrantDocker {
     if ($info.ExitCode -ne 0) {
         return [PSCustomObject]@{
             Ok      = $false
-            Message = 'Docker is installed but not running. Start Docker Desktop and retry.'
+            Message = 'Docker is installed but not running. Start Docker Desktop, wait until it is ready, then retry.'
         }
     }
 
     try {
         $existing = Invoke-Docker -ArgumentList @('ps', '-a', '--filter', "name=$ContainerName", '--format', '{{.Names}}')
-        if ($existing.Output -match $ContainerName) {
-            $start = Invoke-Docker -ArgumentList @('start', $ContainerName)
-            if ($start.ExitCode -ne 0) {
-                return [PSCustomObject]@{
-                    Ok      = $false
-                    Message = "docker start $ContainerName failed: $($start.Output)"
+        $hasContainer = $existing.Output -match [regex]::Escape($ContainerName)
+
+        if ($hasContainer) {
+            $inspect = Invoke-Docker -ArgumentList @('inspect', '-f', '{{.State.Running}}', $ContainerName)
+            if ($inspect.Output -notmatch 'true') {
+                Write-Host "  Starting existing container $ContainerName..." -ForegroundColor DarkGray
+                $start = Invoke-Docker -ArgumentList @('start', $ContainerName)
+                if ($start.ExitCode -ne 0) {
+                    Write-Warn "docker start failed, recreating container..."
+                    Invoke-Docker -ArgumentList @('rm', '-f', $ContainerName) | Out-Null
+                    $hasContainer = $false
                 }
             }
         }
-        else {
-            Write-Host '  Pulling qdrant/qdrant image (first time may take a minute)...' -ForegroundColor DarkGray
+
+        if (-not $hasContainer) {
+            Write-Host '  Pulling qdrant/qdrant (first run may take a minute)...' -ForegroundColor DarkGray
             $pull = Invoke-Docker -ArgumentList @('pull', 'qdrant/qdrant')
             if ($pull.ExitCode -ne 0) {
                 return [PSCustomObject]@{
@@ -152,10 +158,12 @@ function Start-QdrantDocker {
                 '--name', $ContainerName,
                 '-p', '6333:6333',
                 '-p', '6334:6334',
+                '--restart', 'unless-stopped',
                 'qdrant/qdrant'
             )
             if ($run.ExitCode -ne 0) {
-                if ($run.Output -match 'already in use|Conflict') {
+                if ($run.Output -match 'already in use|Conflict|port is already allocated') {
+                    Write-Warn 'Port 6333 in use - attempting to start existing utah-qdrant...'
                     Invoke-Docker -ArgumentList @('start', $ContainerName) | Out-Null
                 }
                 else {
@@ -167,6 +175,7 @@ function Start-QdrantDocker {
             }
         }
 
+        Write-Host '  Waiting for Qdrant API...' -ForegroundColor DarkGray
         $deadline = (Get-Date).AddSeconds($WaitSeconds)
         while ((Get-Date) -lt $deadline) {
             $health = Test-QdrantHealth -BaseUrl $BaseUrl -TimeoutSec 3
@@ -181,13 +190,114 @@ function Start-QdrantDocker {
 
         return [PSCustomObject]@{
             Ok      = $false
-            Message = "Container $ContainerName started but API not ready. Try: docker logs $ContainerName"
+            Message = "Container $ContainerName running but API not ready. Check: docker logs $ContainerName"
         }
     }
     catch {
         return [PSCustomObject]@{
             Ok      = $false
             Message = $_.Exception.Message
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Ensures Qdrant is reachable; auto-starts Docker container if needed.
+#>
+function Ensure-QdrantReady {
+    param(
+        [string]$BaseUrl = 'http://127.0.0.1:6333',
+        [switch]$NoAutoStart,
+        [switch]$Quiet,
+        [int]$WaitSeconds = 60
+    )
+
+    if (-not $Quiet) {
+        Write-Host '  Checking Qdrant...' -ForegroundColor DarkGray
+    }
+
+    $health = Test-QdrantHealth -BaseUrl $BaseUrl -TimeoutSec 5
+    if ($health.Ok) {
+        if (-not $Quiet) {
+            Write-Host "  [OK] $($health.Message)" -ForegroundColor DarkGreen
+        }
+        return $health
+    }
+
+    if ($NoAutoStart) {
+        if (-not $Quiet) {
+            Write-Host "  [OFFLINE] $($health.Message)" -ForegroundColor Red
+        }
+        return $health
+    }
+
+    if (-not $Quiet) {
+        Write-Host '  Qdrant offline - auto-starting via Docker...' -ForegroundColor Yellow
+    }
+
+    $started = Start-QdrantDocker -BaseUrl $BaseUrl -WaitSeconds $WaitSeconds
+    if (-not $started.Ok) {
+        if (-not $Quiet) {
+            Write-Host "  [FAILED] $($started.Message)" -ForegroundColor Red
+        }
+        return [PSCustomObject]@{
+            Ok      = $false
+            Message = $started.Message
+            Url     = $BaseUrl.TrimEnd('/')
+        }
+    }
+
+    $health = Test-QdrantHealth -BaseUrl $BaseUrl -TimeoutSec 8
+    if ($health.Ok) {
+        if (-not $Quiet) {
+            Write-Host "  [OK] $($started.Message)" -ForegroundColor DarkGreen
+        }
+    }
+    else {
+        if (-not $Quiet) {
+            Write-Host "  [FAILED] Qdrant still unreachable after Docker start" -ForegroundColor Red
+        }
+    }
+    return $health
+}
+
+function Ensure-QdrantCollection {
+    param(
+        [string]$BaseUrl,
+        [string]$Collection,
+        [int]$VectorSize = 768
+    )
+
+    $base = $BaseUrl.TrimEnd('/')
+    $checkUri = "$base/collections/$Collection"
+    try {
+        $resp = Invoke-WebRequest -Uri $checkUri -Method Get -TimeoutSec 10 -UseBasicParsing
+        if ($resp.StatusCode -eq 200) {
+            return [PSCustomObject]@{ Ok = $true; Message = "Collection '$Collection' exists" }
+        }
+    }
+    catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 404) {
+            # continue to create attempt
+        }
+    }
+
+    $body = @{
+        vectors = @{
+            size     = $VectorSize
+            distance = 'Cosine'
+        }
+    } | ConvertTo-Json -Depth 4
+
+    try {
+        Invoke-WebRequest -Uri $checkUri -Method Put -Body $body -ContentType 'application/json' -TimeoutSec 30 -UseBasicParsing | Out-Null
+        return [PSCustomObject]@{ Ok = $true; Message = "Created collection '$Collection'" }
+    }
+    catch {
+        return [PSCustomObject]@{
+            Ok      = $false
+            Message = "Failed to create collection '$Collection': $($_.Exception.Message)"
         }
     }
 }

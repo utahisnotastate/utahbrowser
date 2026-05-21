@@ -4,6 +4,7 @@ mod embed;
 mod ingest;
 pub mod ollama;
 mod qdrant;
+mod services;
 mod verify;
 
 pub use verify::VerificationResult;
@@ -40,9 +41,14 @@ impl TruthEngine {
         (ollama, qdrant)
     }
 
+    /// Ensure Qdrant is reachable (auto-starts Docker on Windows when possible).
+    pub async fn ensure_services(&self) -> Result<()> {
+        services::ensure_qdrant_ready(&self.config, &self.qdrant).await
+    }
+
     /// Ingest all notebooks from the knowledge directory into Qdrant.
     pub async fn ingest_notebooks(&self) -> Result<usize> {
-        self.qdrant.ensure_collection().await?;
+        services::ensure_qdrant_ready(&self.config, &self.qdrant).await?;
         let documents = ingest::load_documents(&self.config.knowledge)?;
         let mut total = 0usize;
 
@@ -76,6 +82,7 @@ impl TruthEngine {
 
     /// Verify a statement against indexed notebook chunks.
     pub async fn verify_text(&self, text: &str) -> Result<VerificationResult> {
+        services::ensure_qdrant_ready(&self.config, &self.qdrant).await?;
         verify::verify_statement(
             text,
             &self.config,

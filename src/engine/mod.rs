@@ -213,6 +213,30 @@ async fn handle_ipc(body: &str, state: &Arc<AppState>, webview: &wry::WebView) -
                 },
             );
         }
+        IpcRequest::EnsureServices => {
+            match state.truth.read().await.ensure_services().await {
+                Ok(()) => {
+                    let (ollama, qdrant) = state.truth.read().await.health().await;
+                    push_event(
+                        webview,
+                        IpcEvent::Status {
+                            ollama,
+                            qdrant,
+                            knowledge_path: state.config.knowledge.path.display().to_string(),
+                            chunks_indexed: state.truth.read().await.chunks_indexed(),
+                        },
+                    );
+                }
+                Err(e) => {
+                    push_event(
+                        webview,
+                        IpcEvent::Error {
+                            message: format!("{e:#}"),
+                        },
+                    );
+                }
+            }
+        }
         IpcRequest::IngestNotebooks => {
             push_event(
                 webview,

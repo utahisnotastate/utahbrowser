@@ -14,6 +14,8 @@ pub enum IpcRequest {
     IngestNotebooks,
     /// Return service health (Ollama, Qdrant, corpus path).
     GetStatus,
+    /// Ensure Qdrant is up (auto-start on Windows) before Truth Engine work.
+    EnsureServices,
     /// Extract visible page text and verify (active tab).
     VerifyActiveTab,
 }

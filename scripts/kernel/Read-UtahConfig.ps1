@@ -39,12 +39,18 @@ function Read-UtahConfig {
     if (-not $chat) { $chat = 'llama3.2' }
     $qdrant = Get-TomlValue 'qdrant' 'url'
     if (-not $qdrant) { $qdrant = 'http://127.0.0.1:6333' }
+    $collection = Get-TomlValue 'qdrant' 'collection'
+    if (-not $collection) { $collection = 'utah_notebooks' }
+    $vectorSize = Get-TomlValue 'qdrant' 'vector_size'
+    if (-not $vectorSize) { $vectorSize = '768' }
 
     [PSCustomObject]@{
-        OllamaHost    = $ollamaHost
-        EmbedModel    = $embed
-        ChatModel     = $chat
-        QdrantUrl     = $qdrant
-        KnowledgePath = (Get-TomlValue 'knowledge' 'path')
+        OllamaHost       = $ollamaHost
+        EmbedModel       = $embed
+        ChatModel        = $chat
+        QdrantUrl        = $qdrant
+        QdrantCollection = $collection
+        QdrantVectorSize = [int]$vectorSize
+        KnowledgePath    = (Get-TomlValue 'knowledge' 'path')
     }
 }
