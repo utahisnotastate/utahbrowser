@@ -2,6 +2,16 @@
 
 If `install.ps1` fails while compiling Rust code, use this guide.
 
+## Qdrant: Docker not required
+
+Utah Browser installs the official [Qdrant](https://github.com/qdrant/qdrant) Windows binary automatically. On first run you need **internet once** for the download (~50MB). Data stays in `%LOCALAPPDATA%\UtahBrowser\qdrant`.
+
+```powershell
+.\scripts\Ensure-Qdrant.ps1
+```
+
+If native install fails, the installer tries Docker (optional). [Utahnetes](https://github.com/utahisnotastate/utahnetes) is a separate LAN swarm project and does **not** replace Qdrant for notebook search.
+
 ## Quick fix (try first)
 
 Run from the **project root** (not only the `scripts` folder):

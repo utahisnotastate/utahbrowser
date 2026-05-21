@@ -6,6 +6,7 @@
 # --- Utah Browser build outputs ---
 /dist/
 /evolution/proposals/
+.utah-browser/
 
 # --- Local env & secrets (never commit) ---
 .env

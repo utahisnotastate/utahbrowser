@@ -24,7 +24,7 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 
 ## Quick start
 
-**Prerequisites:** [Rust](https://rustup.rs/), [Ollama](https://ollama.com/), [Qdrant](https://qdrant.tech/) (Docker: `docker run -p 6333:6333 qdrant/qdrant`)
+**Prerequisites:** [Rust](https://rustup.rs/), [Ollama](https://ollama.com/). **Qdrant** is auto-installed as a native binary (no Docker required; Docker is optional fallback).
 
 ```powershell
 git clone https://github.com/utahisnotastate/utahbrowser.git

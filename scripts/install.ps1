@@ -66,7 +66,7 @@ try {
         # Qdrant must be up before Truth Engine steps (model pull does not need it;
         # collection prep and ingest do — ensure now so later steps never hit a dead API).
         Write-Host '  Ensuring Qdrant (required for Truth Engine)...' -ForegroundColor DarkGray
-        $qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -NoAutoStart:$SkipQdrantStart
+        $qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -ProjectRoot $Root -NoAutoStart:$SkipQdrantStart
         $report.qdrant = $qdrant
 
         if ($qdrant.Ok) {
@@ -81,7 +81,12 @@ try {
         else {
             Write-Err $qdrant.Message
             if ($KnowledgePath) {
-                throw 'Qdrant must be running when using -KnowledgePath. Start Docker Desktop and re-run install.ps1'
+                throw @'
+Qdrant could not be started (native download and Docker fallback both failed).
+- Check internet for first-time Qdrant binary download
+- Or install Docker Desktop and re-run: .\scripts\install.ps1 -KnowledgePath "<path>"
+See docs/guides/BUILD_TROUBLESHOOTING.md
+'@
             }
         }
 
@@ -124,7 +129,7 @@ try {
     # --- Phase 1b: Qdrant must be up before dist (launcher + Truth Engine depend on it) ---
     if (-not $SkipHealth) {
         Write-Step 'Ensuring Qdrant before packaging Truth Engine'
-        $qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -NoAutoStart:$SkipQdrantStart
+        $qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -ProjectRoot $Root -NoAutoStart:$SkipQdrantStart
         $report.qdrant = $qdrant
         if ($qdrant.Ok) {
             $col = Ensure-QdrantCollection -BaseUrl $cfg.QdrantUrl -Collection $cfg.QdrantCollection -VectorSize $cfg.QdrantVectorSize
@@ -133,7 +138,7 @@ try {
             }
         }
         elseif ($KnowledgePath) {
-            throw 'Qdrant is required but could not be started. Start Docker Desktop and re-run install.ps1'
+            throw 'Qdrant is required but could not be started. Re-run install.ps1 (native Qdrant is downloaded automatically).'
         }
     }
 

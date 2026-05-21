@@ -14,7 +14,7 @@ $KernelDir = Join-Path $ProjectRoot 'scripts\kernel'
 . (Join-Path $KernelDir 'Health.ps1')
 
 $cfg = Read-UtahConfig -ConfigPath (Join-Path $ProjectRoot 'config\default.toml')
-$qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -NoAutoStart:$NoAutoStart
+$qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -ProjectRoot $ProjectRoot -NoAutoStart:$NoAutoStart
 
 if ($qdrant.Ok) {
     $col = Ensure-QdrantCollection -BaseUrl $cfg.QdrantUrl -Collection $cfg.QdrantCollection -VectorSize $cfg.QdrantVectorSize

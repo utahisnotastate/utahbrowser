@@ -23,7 +23,7 @@ else {
     Write-Host '  Start Ollama Desktop or run: ollama serve' -ForegroundColor Yellow
 }
 
-$qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl
+$qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -ProjectRoot $ProjectRoot
 if ($qdrant.Ok) {
     $col = Ensure-QdrantCollection -BaseUrl $cfg.QdrantUrl -Collection $cfg.QdrantCollection -VectorSize $cfg.QdrantVectorSize
     if ($col.Ok) {

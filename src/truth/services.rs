@@ -87,8 +87,8 @@ pub async fn ensure_qdrant_ready(config: &AppConfig, qdrant: &QdrantClient) -> R
     }
 
     anyhow::bail!(
-        "Qdrant is not reachable at {}. Start Docker Desktop, then run \
-         .\\scripts\\Ensure-Qdrant.ps1 or .\\dist\\Launch-UtahBrowser.ps1",
+        "Qdrant is not reachable at {}. Re-run .\\scripts\\install.ps1 or \
+         .\\scripts\\Ensure-Qdrant.ps1 (installs native Qdrant without Docker)",
         config.qdrant.url
     )
 }

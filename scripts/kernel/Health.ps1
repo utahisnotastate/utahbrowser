@@ -1,5 +1,7 @@
 # Local service health probes for Ollama and Qdrant.
 
+. (Join-Path $PSScriptRoot 'QdrantNative.ps1')
+
 function Test-OllamaHealth {
     param(
         [string]$HostUrl,
@@ -136,7 +138,7 @@ function Start-QdrantDocker {
                 Write-Host "  Starting existing container $ContainerName..." -ForegroundColor DarkGray
                 $start = Invoke-Docker -ArgumentList @('start', $ContainerName)
                 if ($start.ExitCode -ne 0) {
-                    Write-Warn "docker start failed, recreating container..."
+                    Write-Host "  WARN: docker start failed, recreating container..." -ForegroundColor Yellow
                     Invoke-Docker -ArgumentList @('rm', '-f', $ContainerName) | Out-Null
                     $hasContainer = $false
                 }
@@ -163,7 +165,7 @@ function Start-QdrantDocker {
             )
             if ($run.ExitCode -ne 0) {
                 if ($run.Output -match 'already in use|Conflict|port is already allocated') {
-                    Write-Warn 'Port 6333 in use - attempting to start existing utah-qdrant...'
+                    Write-Host '  WARN: Port 6333 in use - attempting to start existing utah-qdrant...' -ForegroundColor Yellow
                     Invoke-Docker -ArgumentList @('start', $ContainerName) | Out-Null
                 }
                 else {
@@ -203,12 +205,14 @@ function Start-QdrantDocker {
 
 <#
 .SYNOPSIS
-    Ensures Qdrant is reachable; auto-starts Docker container if needed.
+    Ensures Qdrant is reachable. Auto-starts native binary first (no Docker), then Docker if available.
 #>
 function Ensure-QdrantReady {
     param(
         [string]$BaseUrl = 'http://127.0.0.1:6333',
+        [string]$ProjectRoot = $null,
         [switch]$NoAutoStart,
+        [switch]$DockerOnly,
         [switch]$Quiet,
         [int]$WaitSeconds = 60
     )
@@ -232,11 +236,32 @@ function Ensure-QdrantReady {
         return $health
     }
 
-    if (-not $Quiet) {
-        Write-Host '  Qdrant offline - auto-starting via Docker...' -ForegroundColor Yellow
+    $started = $null
+    if (-not $DockerOnly) {
+        if (-not $Quiet) {
+            Write-Host '  Qdrant offline - installing/starting native Qdrant (no Docker required)...' -ForegroundColor Yellow
+        }
+        $started = Start-QdrantNative -BaseUrl $BaseUrl -ProjectRoot $ProjectRoot -WaitSeconds $WaitSeconds
     }
 
-    $started = Start-QdrantDocker -BaseUrl $BaseUrl -WaitSeconds $WaitSeconds
+    if ((-not $started) -or (-not $started.Ok)) {
+        if ($started -and $started.Message -and -not $Quiet) {
+            Write-Host "  WARN: $($started.Message)" -ForegroundColor Yellow
+        }
+        if ((Get-Command docker -ErrorAction SilentlyContinue)) {
+            if (-not $Quiet) {
+                Write-Host '  Trying Docker fallback (utah-qdrant)...' -ForegroundColor DarkGray
+            }
+            $started = Start-QdrantDocker -BaseUrl $BaseUrl -WaitSeconds $WaitSeconds
+        }
+        elseif (-not $started) {
+            $started = [PSCustomObject]@{
+                Ok      = $false
+                Message = 'Native Qdrant failed and Docker is not installed'
+            }
+        }
+    }
+
     if (-not $started.Ok) {
         if (-not $Quiet) {
             Write-Host "  [FAILED] $($started.Message)" -ForegroundColor Red
@@ -256,7 +281,7 @@ function Ensure-QdrantReady {
     }
     else {
         if (-not $Quiet) {
-            Write-Host "  [FAILED] Qdrant still unreachable after Docker start" -ForegroundColor Red
+            Write-Host '  [FAILED] Qdrant still unreachable after auto-start' -ForegroundColor Red
         }
     }
     return $health

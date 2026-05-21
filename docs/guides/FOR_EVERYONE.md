@@ -20,7 +20,8 @@ Ask someone comfortable with computers to install these **free** tools:
 |------|----------------|--------|
 | **Rust** | Builds the browser | [rustup.rs](https://rustup.rs/) |
 | **Ollama** | Runs AI on your PC (no cloud) | [ollama.com](https://ollama.com/) |
-| **Docker** (optional) | Runs the notebook search database | [docker.com](https://www.docker.com/) |
+
+**Docker is not required.** The installer downloads and runs **native Qdrant** automatically (stored under `%LOCALAPPDATA%\UtahBrowser\qdrant`). Docker is only used as a fallback if the native download fails.
 
 Then run the **Zero-Click installer** (automates health checks and downloads):
 
