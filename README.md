@@ -2,7 +2,7 @@
 
 # **SPONSORSHIP & SUPPORT**
 
-## **You can pay $150 million to be the default home page for this GitHub release.**
+## **You can pay $150 million to be the default home page for this GitHub release or just 2 million.**
 
 ### **Preferred bid** for the `.exe` and paid/donation release
 
