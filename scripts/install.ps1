@@ -66,11 +66,13 @@ try {
         $qdrant = Test-QdrantHealth -BaseUrl $cfg.QdrantUrl -TimeoutSec $HealthTimeoutSec
         if (-not $qdrant.Ok -and -not $SkipQdrantStart) {
             Write-Warn 'Qdrant offline - attempting Docker start (utah-qdrant)...'
-            $started = Start-QdrantDocker
+            $started = Start-QdrantDocker -BaseUrl $cfg.QdrantUrl
             if ($started.Ok) {
-                Write-Host "  $($started.Message)" -ForegroundColor DarkCyan
-                Start-Sleep -Seconds 2
+                Write-Host "  [OK] $($started.Message)" -ForegroundColor DarkCyan
                 $qdrant = Test-QdrantHealth -BaseUrl $cfg.QdrantUrl -TimeoutSec $HealthTimeoutSec
+            }
+            else {
+                Write-Warn $started.Message
             }
         }
         $report.qdrant = $qdrant

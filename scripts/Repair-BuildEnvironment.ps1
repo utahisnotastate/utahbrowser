@@ -10,6 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $KernelDir = Join-Path $Root 'scripts\kernel'
+. (Join-Path $KernelDir 'Cargo.ps1')
 . (Join-Path $KernelDir 'Build.ps1')
 
 Write-Host 'Utah Browser - Build Environment Repair' -ForegroundColor Green

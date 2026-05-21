@@ -1,5 +1,7 @@
 # Robust release build with cache repair and Windows policy diagnostics.
 
+. (Join-Path $PSScriptRoot 'Cargo.ps1')
+
 function Get-UtahBuildLogPath {
     param([string]$Root)
     Join-Path $Root 'target\install-build.log'
@@ -11,7 +13,11 @@ function Repair-UtahCargoCache {
     Write-Host '  Repairing Cargo cache (cargo clean + refresh zerovec crates)...' -ForegroundColor Cyan
     Push-Location $Root
     try {
-        cargo clean 2>&1 | Out-Null
+        $code = Invoke-Cargo -ArgumentList @('clean')
+        if ($code -ne 0) {
+            Write-Warn "cargo clean exited with $code (continuing)"
+        }
+
         $registrySrc = Join-Path $env:USERPROFILE '.cargo\registry\src'
         if (Test-Path $registrySrc) {
             $patterns = @('zerovec-*', 'zerovec_derive-*', 'icu_*', 'yoke-*')
@@ -23,7 +29,12 @@ function Repair-UtahCargoCache {
                 }
             }
         }
-        cargo fetch 2>&1 | Out-Null
+
+        Write-Host '  Fetching dependencies...' -ForegroundColor DarkGray
+        $code = Invoke-Cargo -ArgumentList @('fetch') -ShowOutput
+        if ($code -ne 0) {
+            throw "cargo fetch failed (exit $code)"
+        }
     }
     finally {
         Pop-Location
@@ -97,23 +108,20 @@ function Invoke-UtahCargoBuild {
         New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     }
 
-    Write-Host "  $(rustc --version 2>&1)" -ForegroundColor DarkGray
-    Write-Host "  $(cargo --version 2>&1)" -ForegroundColor DarkGray
+    Write-Host "  $(Get-ToolchainLine 'rustc')" -ForegroundColor DarkGray
+    Write-Host "  $(Get-ToolchainLine 'cargo')" -ForegroundColor DarkGray
 
     Push-Location $Root
     try {
-        cargo fetch 2>&1 | Out-Null
+        Write-Host '  Fetching dependencies...' -ForegroundColor DarkGray
+        $fetchCode = Invoke-Cargo -ArgumentList @('fetch') -ShowOutput
+        if ($fetchCode -ne 0) {
+            throw "cargo fetch failed (exit $fetchCode)"
+        }
 
         function Invoke-ReleaseBuild {
-            $prev = $ErrorActionPreference
-            $ErrorActionPreference = 'Continue'
-            try {
-                & cargo build --release 2>&1 | Tee-Object -FilePath $logPath
-                return $LASTEXITCODE
-            }
-            finally {
-                $ErrorActionPreference = $prev
-            }
+            Write-Host '  Compiling (release)...' -ForegroundColor DarkGray
+            return (Invoke-Cargo -ArgumentList @('build', '--release') -ShowOutput -LogPath $logPath)
         }
 
         $code = Invoke-ReleaseBuild
