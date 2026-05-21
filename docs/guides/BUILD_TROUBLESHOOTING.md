@@ -1,89 +1,109 @@
-# Build troubleshooting (Windows)
+# Build & install troubleshooting (Windows)
 
-If `install.ps1` fails while compiling Rust code, use this guide.
+**Repository:** [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
 
-## Qdrant: Docker not required
+---
 
-Utah Browser installs the official [Qdrant](https://github.com/qdrant/qdrant) Windows binary automatically. On first run you need **internet once** for the download (~50MB). Data stays in `%LOCALAPPDATA%\UtahBrowser\qdrant`.
+## Run install from the repo root
+
+```powershell
+cd C:\code\utahbrowser
+.\scripts\install.ps1 -KnowledgePath "C:\path\to\notebooks"
+```
+
+Running from `scripts\` works; `cd` to the root avoids confusion.
+
+---
+
+## Qdrant: native install (no Docker)
+
+Utah Browser downloads [Qdrant](https://github.com/qdrant/qdrant) for Windows automatically.
 
 ```powershell
 .\scripts\Ensure-Qdrant.ps1
 ```
 
-If native install fails, the installer tries Docker (optional). [Utahnetes](https://github.com/utahisnotastate/utahnetes) is a separate LAN swarm project and does **not** replace Qdrant for notebook search.
+| Path | Purpose |
+|------|---------|
+| `%LOCALAPPDATA%\UtahBrowser\qdrant\bin\qdrant.exe` | Server binary |
+| `qdrant.out.log` / `qdrant.err.log` | Logs |
 
-## Quick fix (try first)
+Full guide: [QDRANT_AND_SERVICES.md](QDRANT_AND_SERVICES.md)
 
-Run from the **project root** (not only the `scripts` folder):
+### Error: RedirectStandardOutput and RedirectStandardError are the same
+
+**Cause:** Older installer tried to log stdout and stderr to one file.
+
+**Fix:** `git pull` to get the fix (separate `.out` and `.err` logs), then:
+
+```powershell
+.\scripts\Ensure-Qdrant.ps1
+.\scripts\install.ps1 -KnowledgePath "C:\knowledgebase"
+```
+
+### Qdrant download or API fails
+
+- Confirm internet access to `github.com`
+- Check `qdrant.err.log` for port conflicts (6333 in use)
+- Optional Docker fallback: [QDRANT_AND_SERVICES.md](QDRANT_AND_SERVICES.md)
+
+---
+
+## Rust build errors
+
+### Quick fix
 
 ```powershell
 cd C:\code\utahbrowser
 .\scripts\Repair-BuildEnvironment.ps1
-```
-
-Then install again:
-
-```powershell
 .\scripts\install.ps1 -KnowledgePath "C:\path\to\notebooks"
 ```
 
-Repair-only via installer:
+Repair-only:
 
 ```powershell
 .\scripts\install.ps1 -RepairOnly
 ```
 
-## Error: `can't find crate for zerovec_derive`
+### `can't find crate for zerovec_derive`
 
-**Cause:** Corrupted or incomplete Cargo download cache.
-
-**Fix:** The installer now runs `cargo clean` and refreshes affected crates automatically. If it persists:
+Corrupted Cargo cache. The installer auto-runs `cargo clean` and retries. If needed:
 
 ```powershell
 .\scripts\Repair-BuildEnvironment.ps1
 ```
 
-## Error: `Application Control policy has blocked` (os error 4551)
+### Application Control policy blocked (os error 4551)
 
-**Cause:** Windows security (Defender, Smart App Control, or school/work policy) blocked Cargo’s `build-script-build.exe` files under `target\release\build\`.
+Windows blocked `build-script-build.exe` under `target\release\build\`.
 
-**Fix:**
-
-1. Open **PowerShell as Administrator** and run:
+1. Administrator PowerShell:
 
 ```powershell
-cd C:\code\utahbrowser
 .\scripts\Repair-BuildEnvironment.ps1 -AddExclusions
 ```
 
-2. Or add exclusions manually in **Windows Security** → **Virus & threat protection** → **Exclusions** → **Add an exclusion** → **Folder**:
+2. Or add Defender exclusions for your repo folder and `%USERPROFILE%\.cargo`
 
-   - `C:\code\utahbrowser` (your clone path)
-   - `C:\Users\<you>\.cargo`
+3. Re-run `.\scripts\install.ps1`
 
-3. On managed PCs, ask IT to allow build scripts under:
+### PowerShell stops on "Downloading crates ..."
 
-   - `<project>\target\release\build\`
+Cargo writes progress to stderr; fixed in current `scripts/kernel/Cargo.ps1`. `git pull` and retry.
 
-4. Re-run:
+---
 
-```powershell
-.\scripts\install.ps1
-```
+## Cargo progress treated as error
 
-## Run install from the correct folder
+Symptom: install exits right after `Downloading crates ...` with `NativeCommandError`.
 
-Always use the repo root:
+**Fix:** Update to latest `main` (uses `Invoke-Cargo` wrapper).
 
-```powershell
-cd C:\code\utahbrowser
-.\scripts\install.ps1
-```
-
-Running only from `scripts\` works, but `cd` to the root avoids path confusion.
+---
 
 ## Still stuck?
 
-- Confirm Rust: `rustc --version` and `cargo --version`
-- Full log: `target\install-build.log`
-- Technical details: [Technical manual](../technical/MANUAL.md)
+- `rustc --version` and `cargo --version`
+- Build log: `target\install-build.log`
+- [Technical manual](../technical/MANUAL.md)
+- [Installation](../INSTALLATION.md)

@@ -3,152 +3,203 @@
 **Version:** 1.0-GENESIS  
 **Repository:** [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
 
+---
+
 ## Overview
 
-Utah Browser is a native desktop shell (Rust + [Wry](https://github.com/tauri-apps/wry)) with:
+Native desktop shell (Rust + [Wry](https://github.com/tauri-apps/wry)) with:
 
-- Custom protocol asset server (`utah://localhost`)
-- JSON IPC to a local Truth Engine (Ollama embeddings + Qdrant vector search)
-- CSS-only UI state (Utah.css); `transport.js` is IPC-only
-- Background services: audio capture scaffold (`cpal`), evolution watcher (`notify`)
+- Custom protocol `utah://localhost` for shell assets
+- JSON IPC between WebView transport layer and Tokio backend
+- **Truth Engine:** Ollama embeddings + Qdrant vector search + optional LLM summary
+- Utah.css UI (checkbox / `:has()` state); `transport.js` is IPC-only
+- Background: `cpal` audio scaffold, `notify` evolution watcher
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Tao EventLoop + Wry WebView (shell UI, utah:// assets) │
-│         │ IPC (postMessage)          │ custom protocol   │
-│         ▼                            ▼                  │
-│  Tokio runtime ◄── TruthEngine ──► Ollama / Qdrant       │
-│         ▲                                               │
-│  Evolution daemon (filesystem → Ollama proposals)         │
-│  Audio daemon (cpal input scaffold)                     │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Tao EventLoop + Wry WebView (utah:// assets)            │
+│       │ IPC (postMessage)     │ custom protocol          │
+│       ▼                       ▼                          │
+│  Tokio ◄── TruthEngine ──► Ollama / Qdrant               │
+│       ▲                                                  │
+│  Evolution daemon · Audio daemon                           │
+└──────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## Requirements
 
-| Component | Version / notes |
-|-----------|-----------------|
+| Component | Notes |
+|-----------|--------|
 | Rust | ≥ 1.75 (`rust-version` in `Cargo.toml`) |
-| Windows | WebView2 runtime (usually preinstalled on Win11) |
-| Ollama | Local HTTP API `127.0.0.1:11434` |
-| Qdrant | REST `127.0.0.1:6333` (Docker recommended) |
+| Windows | WebView2 (Edge runtime) |
+| Ollama | `127.0.0.1:11434` |
+| Qdrant | `127.0.0.1:6333` — **native binary by default**; Docker optional fallback |
 
-## Build
+---
+
+## Build & install
 
 ```powershell
 cargo build --release
-cargo run --release
+.\scripts\install.ps1 -KnowledgePath <path>
 ```
 
-Release profile: LTO, `codegen-units = 1`, strip symbols.
+Release: LTO, `codegen-units = 1`, strip.
 
-### Zero-Click Kernel
+### Zero-Click Kernel (`scripts/install.ps1`)
 
-```powershell
-.\scripts\install.ps1 [-KnowledgePath <path>] [-SkipBuild] [-SkipHealth] [-SkipPull] [-ForcePull]
-```
+| Phase | Module / action |
+|-------|-----------------|
+| Ollama health | `Health.ps1` → `Test-OllamaHealth` |
+| Qdrant ensure | `Ensure-QdrantReady` → `QdrantNative.ps1` then Docker fallback |
+| Collection | `Ensure-QdrantCollection` |
+| Models | `Models.ps1` → `Ensure-OllamaModels` |
+| Build | `Build.ps1` → `Invoke-Cargo` (stderr-safe on PowerShell) |
+| Package | `dist/` + `Launch-UtahBrowser.ps1` |
 
-Modules under `scripts/kernel/`:
+### `scripts/kernel/`
 
-- `Read-UtahConfig.ps1` — parses `config/default.toml`
-- `Health.ps1` — Ollama `/api/tags`, Qdrant `/readyz` chain
-- `Models.ps1` — conditional `ollama pull` for `embed_model` and `chat_model`
+| File | Role |
+|------|------|
+| `Read-UtahConfig.ps1` | Parse `config/default.toml` |
+| `Health.ps1` | Ollama/Qdrant probes, `Ensure-QdrantReady` |
+| `QdrantNative.ps1` | Download/start Windows `qdrant.exe` |
+| `Models.ps1` | Conditional `ollama pull` |
+| `Build.ps1` | Release build + cache repair |
+| `Cargo.ps1` | Cargo wrapper (no stderr terminate) |
 
-Artifacts: `dist/utah-browser.exe`, `health-report.json`, `Launch-UtahBrowser.ps1`, `utah.env.ps1`.
+### Helper scripts
+
+| Script | Role |
+|--------|------|
+| `Ensure-Qdrant.ps1` | Native Qdrant only |
+| `Ensure-Services.ps1` | Ollama + Qdrant (launcher) |
+| `Repair-BuildEnvironment.ps1` | Cargo clean / Defender exclusions |
+
+---
+
+## Qdrant native path
+
+1. `Install-QdrantNativeBinary` — GitHub release zip → `%LOCALAPPDATA%\UtahBrowser\qdrant\bin\`
+2. `Start-QdrantNative` — `config.yaml`, hidden `qdrant.exe`, PID file
+3. Logs: `qdrant.out.log`, `qdrant.err.log` (separate streams)
+4. Rust `truth/services.rs` — on failed ping, spawns `Ensure-Qdrant.ps1` on Windows
+
+Config pin: `UtahQdrantVersion` in `QdrantNative.ps1` (e.g. `v1.13.2`).
+
+---
 
 ## Configuration
 
-File: `config/default.toml`
+`config/default.toml`
 
-| Section | Keys | Purpose |
-|---------|------|---------|
-| `knowledge` | `path`, `extensions` | Notebook corpus root |
-| `ollama` | `host`, `embed_model`, `chat_model` | Embedding + optional LLM summary |
-| `qdrant` | `url`, `collection`, `vector_size` | Vector store (cosine, 768-dim default) |
-| `truth` | `similarity_threshold`, chunk sizes | Verification sensitivity |
-| `evolution` | `watch_paths`, `debounce_ms` | Code watcher scope |
-| `ui` | `start_url`, `window_title` | Shell defaults |
+| Section | Keys |
+|---------|------|
+| `knowledge` | `path`, `extensions` |
+| `ollama` | `host`, `embed_model`, `chat_model` |
+| `qdrant` | `url`, `collection`, `vector_size` |
+| `truth` | `similarity_threshold`, chunk sizes |
+| `evolution` | `watch_paths`, `debounce_ms` |
+| `ui` | `start_url`, `window_title` |
 
-Environment overrides:
-
-| Variable | Overrides |
-|----------|-----------|
+| Env var | Overrides |
+|---------|-----------|
 | `UTAH_KNOWLEDGE_PATH` | `knowledge.path` |
 | `OLLAMA_HOST` | `ollama.host` |
 | `QDRANT_URL` | `qdrant.url` |
+
+---
 
 ## Source layout
 
 ```
 src/
-  main.rs              # tracing, Tokio, daemon spawn, engine::run
-  lib.rs               # AppState
-  config.rs            # TOML load
-  engine/mod.rs        # Wry + Tao user events + IPC dispatch
-  ipc/messages.rs      # IpcRequest / IpcEvent
-  truth/               # ingest, ollama, qdrant, verify
-  audio/capture.rs     # cpal loop
-  evolution/watcher.rs # notify + proposal files
-assets/ui/             # index.html, utah.css, layout.css, transport.js
+  main.rs
+  lib.rs / AppState
+  config.rs
+  engine/mod.rs       # Wry, UserEvent IPC loop
+  ipc/messages.rs
+  truth/
+    mod.rs
+    ingest.rs
+    ollama.rs
+    qdrant.rs
+    verify.rs
+    services.rs       # ensure_qdrant_ready, spawn Ensure-Qdrant.ps1
+  audio/capture.rs
+  evolution/watcher.rs
+assets/ui/
+scripts/
+docs/
 ```
+
+---
 
 ## IPC contract
 
-Transport: `window.utahSend({ cmd: "...", ... })` → Rust `with_ipc_handler` → `UserEvent::Ipc` on main thread.
+Transport: `window.utahSend({ cmd })` → `with_ipc_handler` → `EventLoopProxy` → `handle_ipc` on main thread.
 
-### Requests (`IpcRequest`)
+### Requests
 
-| `cmd` | Fields | Behavior |
-|-------|--------|----------|
-| `navigate` | `url` | `webview.load_url` |
-| `verify_text` | `text` | Embed → Qdrant search → threshold + optional Ollama summary |
-| `ingest_notebooks` | — | Walk knowledge path, chunk, upsert points |
-| `get_status` | — | Ollama/Qdrant ping, chunk count |
-| `verify_active_tab` | — | Stub (accessibility pipeline planned) |
+| `cmd` | Behavior |
+|-------|----------|
+| `navigate` | `load_url` |
+| `ensure_services` | Native/Docker Qdrant ensure + status event |
+| `get_status` | Ollama/Qdrant ping, chunk count |
+| `ingest_notebooks` | `ensure_qdrant_ready` → walk corpus → upsert |
+| `verify_text` | `ensure_qdrant_ready` → embed → search → maybe LLM |
+| `verify_active_tab` | Stub |
 
-### Events (`IpcEvent`)
+`transport.js` calls `ensure_services` before ingest/verify.
 
-Pushed via `evaluate_script("window.utahOnEvent(...)")` — `status`, `verify_result`, `ingest_progress`, `error`, `evolution_proposal`.
+### Events
 
-Custom protocol route: `utah://localhost/navigate?url=...` (form-friendly, no JS).
+`status`, `verify_result`, `ingest_progress`, `error`, `evolution_proposal` via `evaluate_script`.
+
+---
 
 ## Truth Engine pipeline
 
-1. **Ingest** — `truth/ingest.rs` walks `knowledge.path`, extracts PDF/text/markdown
-2. **Chunk** — overlapping character windows (`chunk_chars`, `chunk_overlap`)
-3. **Embed** — `POST {ollama}/api/embeddings`
-4. **Store** — `PUT {qdrant}/collections/{name}/points` with SHA256 point ids
-5. **Verify** — embed claim, `POST .../points/search`, flag if best score &lt; `similarity_threshold`
+1. Ingest files from `knowledge.path`
+2. Chunk (`chunk_chars`, `chunk_overlap`)
+3. `POST /api/embeddings` (Ollama)
+4. `PUT` points (Qdrant, cosine)
+5. Verify: embed claim → search → threshold → optional `api/generate`
 
-## Evolution daemon
+---
 
-- Watches `evolution.watch_paths` for `*.rs`, `*.toml`, `*.css`, `*.html`, `*.md`
-- Debounced Ollama completion → markdown file in `evolution/proposals/`
-- **Does not** auto-apply patches
+## UI (Utah.css)
 
-## UI architecture (Utah.css)
+- Fluid `clamp()` / `dvh` / safe-area insets
+- Container queries on chrome
+- &lt; 48rem: overlay tools panel; ≥ 48rem: docked grid
+- Truth HUD: corner or bottom sheet
 
-- Fluid tokens: `clamp()`, `dvh`, `env(safe-area-inset-*)`
-- Chrome: CSS container queries (`container-name: chrome`)
-- &lt; 48rem: tools overlay + scrim; ≥ 48rem: docked panel grid
-- Truth HUD: corner card / narrow bottom sheet
+---
 
-## Security notes
+## Security
 
-- Custom protocol resolves paths under `assets/ui` only (canonical path check)
-- No outbound telemetry in application code
-- Secrets excluded via `.gitignore` (`.env`, `utah.env.ps1`)
-- iframe `sandbox` attribute on content frame (relaxed for general browsing — review for hardened deployments)
+- Asset protocol path canonicalization under `assets/ui`
+- No app-layer telemetry
+- iframe `sandbox` on content frame (general browsing; tighten for hardened deploys)
+
+---
 
 ## Planned work
 
-- Windows UI Automation / accessibility for `verify_active_tab`
-- Loopback audio → STT → streaming verify
-- Embedding dimension auto-detection vs fixed `vector_size`
-- CI: `cargo test`, `cargo clippy`, release artifacts
+- `verify_active_tab` via UI Automation
+- Audio → STT → live verify
+- Dynamic embedding dimension vs fixed `vector_size`
+- CI: clippy, tests, GitHub Actions release
 
-## API references
+---
+
+## References
 
 - [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md)
 - [Qdrant REST](https://qdrant.tech/documentation/interfaces/#rest-api)
 - [Wry](https://docs.rs/wry/latest/wry/)
+- [Installation](../INSTALLATION.md)
+- [Qdrant & services](../guides/QDRANT_AND_SERVICES.md)

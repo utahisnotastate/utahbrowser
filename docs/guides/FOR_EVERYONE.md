@@ -1,97 +1,123 @@
 # Utah Browser — easy start (non-technical)
 
-This guide is for **parents, teachers, and everyday users**. No programming experience needed.
+For **parents, teachers, and everyday users**. No programming background needed.
+
+**Project:** [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
+
+---
 
 ## What you get
 
-**Utah Browser** is a private web browser for your PC. It:
+**Utah Browser** is a private web browser for your PC that:
 
-- Stays **offline-first** — your notes and checks stay on your machine
-- Does **not** send your browsing to advertising companies
-- Includes **Truth Guard** — compares what you read or hear against *your* notebook files (documents you trust)
+- Keeps browsing and notes **on your machine** (offline-first)
+- Does **not** phone home to ad companies for Truth Guard
+- Includes **Truth Guard** — checks statements against *your* notebook files
 
-Official project: [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
+It uses the same kind of web engine Windows already has (WebView2), wrapped in a small Rust app—not a giant Chromium download.
 
-## Before you start (one-time setup)
+---
 
-Ask someone comfortable with computers to install these **free** tools:
+## What you need (one-time)
 
-| Tool | What it does | Get it |
-|------|----------------|--------|
-| **Rust** | Builds the browser | [rustup.rs](https://rustup.rs/) |
-| **Ollama** | Runs AI on your PC (no cloud) | [ollama.com](https://ollama.com/) |
+| Tool | Purpose | Get it |
+|------|---------|--------|
+| **Rust** | Builds the browser once | [rustup.rs](https://rustup.rs/) |
+| **Ollama** | Local AI on your PC | [ollama.com](https://ollama.com/) |
 
-**Docker is not required.** The installer downloads and runs **native Qdrant** automatically (stored under `%LOCALAPPDATA%\UtahBrowser\qdrant`). Docker is only used as a fallback if the native download fails.
+**You do not need Docker.** The installer downloads **Qdrant** (the notebook search database) as a normal Windows program and starts it for you. Internet is needed **once** for that download (~50 MB).
 
-Then run the **Zero-Click installer** (automates health checks and downloads):
+Detailed steps: [Installation guide](../INSTALLATION.md) · [Qdrant & services](QDRANT_AND_SERVICES.md)
+
+---
+
+## Install (ask a technical helper or follow along)
 
 ```powershell
 cd C:\code\utahbrowser
 .\scripts\install.ps1 -KnowledgePath "C:\path\to\your\notebooks"
 ```
 
-When it finishes, open the app:
+Use your real notes folder instead of `C:\path\to\your\notebooks` (for example `C:\knowledgebase`).
+
+When it finishes:
 
 ```powershell
 .\dist\Launch-UtahBrowser.ps1
 ```
 
+The launcher checks Ollama and Qdrant before opening the window.
+
+---
+
 ## Point Truth Guard at your notebooks
 
-Your notebooks are a folder of files the browser trusts — for example markdown, text, or PDF notes.
-
-Set the folder path when installing:
+Supported files: `.md`, `.txt`, `.markdown`, `.pdf` in one folder.
 
 ```powershell
 .\scripts\install.ps1 -KnowledgePath "D:\MyNotes"
 ```
 
-Or set it before each launch:
+Or set before launch:
 
 ```powershell
 $env:UTAH_KNOWLEDGE_PATH = "D:\MyNotes"
 .\dist\Launch-UtahBrowser.ps1
 ```
 
-## Daily use (3 steps)
+---
 
-1. **Go to a website** — type the address in the bar and press **Go**. The page opens in the large area.
-2. **Load your notebooks** — open **Tools** → **Ingest Notebooks** (do this again when you add new files).
-3. **Check a claim** — paste text into **Verify statement** → **Verify**. Read the result in **Truth HUD**.
+## Daily use
 
-### What the status lines mean
+1. **Browse** — type a web address, press **Go**.
+2. **Ingest** — **Tools** → **Ingest Notebooks** (run again after adding new files).
+3. **Verify** — paste text in **Verify statement** → **Verify** → read **Truth HUD**.
+
+### Status lines
 
 | Line | Meaning |
 |------|---------|
-| **Ollama: online** | AI helper is running on your PC |
+| **Ollama: online** | Local AI is running |
 | **Qdrant: online** | Notebook search database is running |
-| **Knowledge** | Folder path being used for your files |
-| **Chunks** | How many pieces of your notebooks were indexed |
+| **Knowledge** | Which folder is configured |
+| **Chunks** | How many notebook pieces were indexed |
 
-If Ollama or Qdrant says **offline**, run the installer again or ask your helper to start those services.
+---
 
 ## Works on any screen size
 
-The layout adjusts automatically for small laptops, large monitors, and ultrawide screens. Use **Tools** to hide the side panel if you want more space for the website.
+The layout adapts to small laptops, large monitors, and ultrawide displays. Toggle **Tools** to hide the side panel for more browsing space.
 
-## Privacy in plain language
+---
 
-- Browsing and notebook content stay **local**
-- Truth Guard uses **your** files — not a company’s cloud memory
-- You can use the browser **without** turning on Truth Guard (but fact-checking needs notebooks + Ollama + Qdrant)
+## Privacy (plain language)
+
+- Truth Guard uses **your** files on **your** PC
+- No cloud notebook upload is built into the app
+- You can browse without ingesting, but fact-checking needs Ollama + Qdrant + notebooks
+
+---
 
 ## When something goes wrong
 
-| Problem | Try this |
-|---------|----------|
-| **Install failed while building** | [Build troubleshooting](BUILD_TROUBLESHOOTING.md) or `.\scripts\Repair-BuildEnvironment.ps1` |
-| Installer says Ollama offline | Open Ollama app or run `ollama serve` |
-| Qdrant offline | Start Docker, or run installer without `-SkipQdrantStart` |
-| No notebooks found | Check `UTAH_KNOWLEDGE_PATH` points to a real folder |
-| Verify always fails | Run **Ingest Notebooks** again after adding files |
+| Problem | What to do |
+|---------|------------|
+| Install failed while **building** | [Build troubleshooting](BUILD_TROUBLESHOOTING.md) or `.\scripts\Repair-BuildEnvironment.ps1` |
+| **Qdrant** failed | `.\scripts\Ensure-Qdrant.ps1` then [Qdrant guide](QDRANT_AND_SERVICES.md) |
+| **Ollama** offline | Open Ollama app or run `ollama serve` |
+| No notebooks found | Check the folder path exists and has supported files |
+| Verify always fails | Run **Ingest Notebooks** again |
 
-## More detail
+```powershell
+git pull
+.\scripts\install.ps1 -KnowledgePath "C:\knowledgebase"
+```
+
+---
+
+## More reading
 
 - Kids: [For kids](FOR_KIDS.md)
+- Install details: [Installation](../INSTALLATION.md)
 - Developers: [Technical manual](../technical/MANUAL.md)
-- Full README: [README.md](../../README.md)
+- All docs: [docs/README.md](../README.md)
