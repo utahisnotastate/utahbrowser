@@ -11,6 +11,7 @@ Privacy-first, offline-native desktop browser with a local **Truth Engine** (you
 | Kids & families | [Guide for kids](docs/guides/FOR_KIDS.md) |
 | Everyday users | [Easy start (non-technical)](docs/guides/FOR_EVERYONE.md) |
 | Developers & IT | [Technical manual](docs/technical/MANUAL.md) |
+| Build errors (Windows) | [Build troubleshooting](docs/guides/BUILD_TROUBLESHOOTING.md) |
 | All docs | [docs/README.md](docs/README.md) |
 
 ## Features
@@ -45,8 +46,11 @@ cd utahbrowser
 | `-SkipPull` | Skip `ollama pull` |
 | `-SkipQdrantStart` | Do not auto-start Docker `utah-qdrant` |
 | `-ForcePull` | Re-pull models even if present |
+| `-RepairOnly` | Fix Cargo cache and rebuild only |
 
 Outputs: `dist/utah-browser.exe`, `health-report.json`, `Launch-UtahBrowser.ps1`, `utah.env.ps1`.
+
+**Build failed (zerovec / error 4551)?** Run `.\scripts\Repair-BuildEnvironment.ps1` or see [BUILD_TROUBLESHOOTING.md](docs/guides/BUILD_TROUBLESHOOTING.md).
 
 ## Configuration
 

@@ -8,6 +8,7 @@ param(
     [switch]$SkipPull,
     [switch]$SkipQdrantStart,
     [switch]$ForcePull,
+    [switch]$RepairOnly,
     [int]$HealthTimeoutSec = 8
 )
 
@@ -18,6 +19,7 @@ $KernelDir = Join-Path $Root 'scripts\kernel'
 . (Join-Path $KernelDir 'Read-UtahConfig.ps1')
 . (Join-Path $KernelDir 'Health.ps1')
 . (Join-Path $KernelDir 'Models.ps1')
+. (Join-Path $KernelDir 'Build.ps1')
 
 function Write-Step { param([string]$Msg) Write-Host "`n==> $Msg" -ForegroundColor Green }
 function Write-Warn { param([string]$Msg) Write-Host "WARN: $Msg" -ForegroundColor Yellow }
@@ -25,6 +27,16 @@ function Write-Err  { param([string]$Msg) Write-Host "ERROR: $Msg" -ForegroundCo
 
 Push-Location $Root
 try {
+    if ($RepairOnly) {
+        Write-Step 'Repair-only mode'
+        Repair-UtahCargoCache -Root $Root
+        if (-not (Invoke-UtahCargoBuild -Root $Root)) {
+            throw 'cargo build failed after repair'
+        }
+        Write-Step 'Repair complete'
+        return
+    }
+
     $ConfigPath = Join-Path $Root 'config\default.toml'
     $cfg = Read-UtahConfig -ConfigPath $ConfigPath
 
@@ -95,8 +107,9 @@ try {
     # --- Phase 1: Build ---
     if (-not $SkipBuild) {
         Write-Step 'Building Utah Browser (release)'
-        cargo build --release
-        if (-not $?) { throw 'cargo build failed' }
+        if (-not (Invoke-UtahCargoBuild -Root $Root)) {
+            throw 'cargo build failed - see messages above or run .\scripts\Repair-BuildEnvironment.ps1'
+        }
         $report.build = 'ok'
     }
     else {
@@ -114,7 +127,11 @@ try {
         if ($SkipBuild) {
             Write-Warn "Skipping dist packaging (binary missing). Run without -SkipBuild first."
             Write-Step 'Health check complete (no dist bundle)'
-            if (-not $ready) { exit 2 }
+            if (-not $SkipHealth) {
+                $ollamaOk = $report.ollama -and $report.ollama.Ok
+                $qdrantOk = $report.qdrant -and $report.qdrant.Ok
+                if (-not ($ollamaOk -and $qdrantOk)) { exit 2 }
+            }
             return
         }
         throw "Binary not found: $Exe - run without -SkipBuild or build manually"

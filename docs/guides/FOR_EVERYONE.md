@@ -83,6 +83,7 @@ The layout adjusts automatically for small laptops, large monitors, and ultrawid
 
 | Problem | Try this |
 |---------|----------|
+| **Install failed while building** | [Build troubleshooting](BUILD_TROUBLESHOOTING.md) or `.\scripts\Repair-BuildEnvironment.ps1` |
 | Installer says Ollama offline | Open Ollama app or run `ollama serve` |
 | Qdrant offline | Start Docker, or run installer without `-SkipQdrantStart` |
 | No notebooks found | Check `UTAH_KNOWLEDGE_PATH` points to a real folder |
