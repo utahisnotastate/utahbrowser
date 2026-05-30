@@ -1,5 +1,18 @@
 <div align="center">
 
+<!-- Brand row: Chief Spy centered -->
+<table>
+  <tr>
+    <td align="center"><img src="assets/branding/utah-occult-agency.png" alt="Utah Occult Agency" width="110" /></td>
+    <td align="center"><img src="assets/branding/utah-intelligence-agency.png" alt="Utah Intelligence Agency" width="110" /></td>
+    <td align="center"><img src="assets/branding/chief-spy.png" alt="Chief Spy" width="150" /></td>
+    <td align="center"><img src="assets/branding/ufw-hoodlums.png" alt="UFW Hoodlums" width="110" /></td>
+    <td align="center"><img src="assets/branding/bellas-flying-squirrels.png" alt="Bella's Flying Squirrels" width="110" /></td>
+  </tr>
+</table>
+
+<br />
+
 # Utah Browser
 
 **Privacy-first desktop browser for Windows** — Rust + WebView2, local Truth Engine, unified compositor shell.
@@ -12,6 +25,36 @@
 
 ---
 
+## RIP Google Search (1998–2026)
+
+**Killed by the Chief Spy, Utah Hans.**  
+**Browser wars won by Utah.**
+
+Utah credits ad-industry capture of the browser stack as the primary catalyst for search-engine obsolescence—not better algorithms, but better *incentives*. When the product is the ad, the index serves the advertiser. Utah Browser inverts that contract.
+
+---
+
+## Why Utah Search is SOTA — the Truth-Lens paradigm
+
+Classic search engines (Google, Bing) are **document harvesters**. They crawl the public web, rank by popularity and ad yield, and return what the platform is paid to prioritize.
+
+**Utah Search is a semantic mesh ingestor**—local, private, and aligned to *your* corpus, not a global ad graph.
+
+| Principle | Document harvesters | Utah Search |
+|-----------|---------------------|-------------|
+| **Indexing model** | Crawl the whole web | Capture geometric intent from *your* browsing and notebooks |
+| **History** | Server-side logs and profiles | Private **Qdrant** vectors on **your** hardware |
+| **Relevance** | SEO—keywords, backlinks, spend | **Entity alignment**—meaning matched to your indexed knowledge |
+| **Answer shape** | Ten blue links | **Zero-latency synthesis** from your local semantic mesh via Truth Guard |
+
+1. **No crawling.** We do not build a planet-scale spider. Your browser ingests what *you* choose—pages you visit and files you trust.
+2. **Private vector mesh.** Search history becomes a local embedding index, not a remote behavioral dossier.
+3. **Entity alignment vs. SEO.** Rankings follow semantic proximity to *your* knowledge graph, not keyword games.
+4. **Zero-latency synthesis.** You query indexed intelligence on-device; Ollama + Qdrant synthesize answers from chunks you already own—no round trip through a ad-optimized ranking layer.
+
+This is the **Truth-Lens**: search as verification against sovereign data, not discovery through a commercial filter.
+
+---
 ## What is this?
 
 Utah Browser is an **open-source browser shell** that keeps AI-assisted fact-checking on **your hardware**:
@@ -92,6 +135,7 @@ cd dist
 ```
 src/              # Rust: engine, truth, sentinel, vault, browser core
 assets/ui/        # Shell HTML, CSS, compositor JS
+assets/branding/  # README seals and crests (Chief Spy, UIA, etc.)
 config/           # default.toml, demo.toml
 ghost-link/       # Optional sensory daemon (Python)
 urm/              # Optional Nexus orchestrator (Python)
