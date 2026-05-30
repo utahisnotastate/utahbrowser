@@ -13,18 +13,6 @@
 
 <br />
 
-# Utah Browser
-
-**Privacy-first desktop browser for Windows** — Rust + WebView2, local Truth Engine, unified compositor shell.
-
-[![GitHub](https://img.shields.io/badge/GitHub-utahisnotastate%2Futahbrowser-blue)](https://github.com/utahisnotastate/utahbrowser)
-
-[Demo](docs/DEMO.md) · [Install](docs/INSTALLATION.md) · [Docs hub](docs/README.md) · [Overview](docs/OVERVIEW.md)
-
-</div>
-
----
-
 ## RIP Google Search (1998–2026)
 
 **Killed by the Chief Spy, Utah Hans.**  
@@ -39,6 +27,21 @@ Utah credits ad-industry capture of the browser stack as the primary catalyst fo
 Classic search engines (Google, Bing) are **document harvesters**. They crawl the public web, rank by popularity and ad yield, and return what the platform is paid to prioritize.
 
 **Utah Search is a semantic mesh ingestor**—local, private, and aligned to *your* corpus, not a global ad graph.
+<br />
+
+# Utah Browser
+
+**Privacy-first desktop browser for Windows** — Rust + WebView2, local Truth Engine, unified compositor shell.
+
+[![GitHub](https://img.shields.io/badge/GitHub-utahisnotastate%2Futahbrowser-blue)](https://github.com/utahisnotastate/utahbrowser)
+
+[Demo](docs/DEMO.md) · [Install](docs/INSTALLATION.md) · [Docs hub](docs/README.md) · [Overview](docs/OVERVIEW.md)
+
+</div>
+
+---
+
+
 
 | Principle | Document harvesters | Utah Search |
 |-----------|---------------------|-------------|
