@@ -1,6 +1,6 @@
 # Ghost-Link Sovereign Engine
 
-Offline peripheral sensory daemon for Utah Browser (UTAH-OMEGA-23).
+Offline peripheral sensory daemon for Utah Browser (optional subsystem).
 
 ## Quick start
 

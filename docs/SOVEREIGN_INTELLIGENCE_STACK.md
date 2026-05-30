@@ -1,6 +1,8 @@
 # Sovereign Intelligence Stack
 
-Utah Browser V1.0 — edge-native, local-only AI shell.
+Utah Browser V1.0 — edge-native, local-only AI shell (browser core).
+
+**Scope:** This document covers modules **in the utahbrowser repository**. Private or unrelated apps belong elsewhere — see [REPOSITORY_SCOPE.md](REPOSITORY_SCOPE.md).
 
 ## Modules
 

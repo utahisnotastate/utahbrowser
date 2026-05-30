@@ -2,7 +2,7 @@
 
 [knowledge]
 # Notebook corpus for Truth Engine (override with UTAH_KNOWLEDGE_PATH)
-path = "C:/code/utahisnotastate"
+path = "C:/Users/Public/Documents/UtahBrowser-Knowledge"
 extensions = ["md", "txt", "markdown", "pdf"]
 
 [ollama]
@@ -37,7 +37,7 @@ proposals_dir = "evolution/proposals"
 
 [ui]
 start_url = "https://www.google.com"
-window_title = "Utah Browser // V1.0-GENESIS // OMEGA-23"
+window_title = "Utah Browser // V1.0-GENESIS"
 
 [browser]
 bookmarks_collection = "utah_bookmarks"
@@ -56,3 +56,10 @@ vision_model = "llava"
 enabled = true
 poll_hz = 10.0
 snapshot_interval_sec = 60.0
+
+[quantum]
+# Omega-Standard: Quantum Engine for Tensor-Field Rendering.
+# Requires Python + PyQt6 + PyOpenGL.
+enabled = false
+engine_port = 8080
+vibe_path = "vibes"

@@ -66,6 +66,10 @@ flowchart TB
         URM["urm/nexus_orchestrator.py"]
         Ghost["ghost-link daemon"]
         IngestPy["scripts/ingestion_daemon.py"]
+        Quantum["utah_core/main.py (Quantum Engine)"]
+        Sequencer["utah_core/natura_sequencer.py (Void Filter)"]
+        Painter["utah_core/eidetic_painter.py (GPU Projection)"]
+        Mesh["utah_core/semantic_mesh.py (Eigen-Indexing)"]
     end
 
     Launcher --> PS
@@ -113,6 +117,8 @@ flowchart TB
 | `config/default.toml` | Single source of truth for runtime config |
 | `scripts/` | PowerShell Zero-Click Kernel, Qdrant native, build |
 | `urm/` | Python Nexus orchestrator (optional) |
+| `utah_core/` | Quantum Engine: Tensor-Field Rendering + Vibe Daemon |
+| `vibes/` | Vibe-Coding Extension API: Natural language intent files |
 | `dist/` | Portable build output (gitignored; produced by install/build) |
 | `docs/` | User + technical documentation |
 
@@ -526,7 +532,7 @@ See [CRASH_ON_LAUNCH_REPORT.md](./CRASH_ON_LAUNCH_REPORT.md) for failure modes.
 | Project | Relationship |
 |---------|--------------|
 | [utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser) | This repo |
-| Knowledge corpus | User path e.g. `C:/code/utahisnotastate` (notebooks, not in browser repo) |
+| Knowledge corpus | User path via `UTAH_KNOWLEDGE_PATH` (notebooks; not shipped in this repo) |
 | [utahnetes](https://github.com/utahisnotastate/utahnetes) | Referenced in docs as related “swarm” / ops narrative — not a runtime dependency of the Rust binary |
 | Ghost-Link | Optional Python daemon via `install_ghost_link.ps1` |
 
@@ -603,11 +609,35 @@ Parallel (main.rs):
 
 ---
 
-## 23. Documentation index
+## 24. Optional & local-only experiments (not browser core)
+
+The **shipped browser** is `cargo build --release` → `utah-browser.exe` + `assets/ui/`. The following are **not required** to browse the web and are **not** part of the default demo:
+
+| Artifact | Location | Status |
+|----------|----------|--------|
+| Ghost-Link daemon | `ghost-link/` | Optional Python install |
+| URM Nexus | `urm/` | Optional orchestrator scaffold |
+| Dev relaunch script | `scripts/Lazarus-Daemon.ps1` | Manual developer helper |
+| Periodic cargo update | `scripts/Millennium-Pipeline.ps1` | Manual developer helper |
+| PyQt “quantum engine” prototype | `utah_core/` (local, gitignored) | **Not in public git**; research only |
+
+**URM `resume_engine.py`** is a placeholder vault-profile module for future document synthesis — it is not wired into the Rust browser binary and does not ship in the demo.
+
+For shipped browser features (compositor, prefetch, WASM host), see [UNIFIED_COMPOSITOR_AND_PHASE3.md](./UNIFIED_COMPOSITOR_AND_PHASE3.md) and [ROADMAP.md](../ROADMAP.md).
+
+Repository boundaries: [REPOSITORY_SCOPE.md](../REPOSITORY_SCOPE.md).
+
+---
+
+## 25. Documentation index
 
 | Doc | Audience |
 |-----|----------|
 | [docs/README.md](../README.md) | Doc hub |
+| [docs/OVERVIEW.md](../OVERVIEW.md) | Product summary |
+| [docs/REPOSITORY_SCOPE.md](../REPOSITORY_SCOPE.md) | What belongs in this repo |
+| [docs/ROADMAP.md](../ROADMAP.md) | Shipped vs planned |
+| [docs/CONFIGURATION.md](../CONFIGURATION.md) | Config reference |
 | [docs/INSTALLATION.md](../INSTALLATION.md) | Install walkthrough |
 | [docs/guides/FOR_EVERYONE.md](../guides/FOR_EVERYONE.md) | Non-technical users |
 | [docs/guides/FOR_KIDS.md](../guides/FOR_KIDS.md) | Families |

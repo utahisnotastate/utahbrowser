@@ -6,6 +6,11 @@
 # --- Utah Browser build outputs ---
 /dist/
 /release/*.zip
+
+# --- Local experiments (not part of public browser source) ---
+utah_core/
+release/UtahBrowser-1.0-GENESIS/
+
 /evolution/proposals/
 .utah-browser/
 .cursorrules
@@ -49,8 +54,11 @@ desktop.ini
 *.log
 health-report.json
 
-# --- Package managers (if added later) ---
-node_modules/
+# --- Python ---
+__pycache__/
+*.py[cod]
+vibes/
+
 package-lock.json
 
 # --- Test / coverage ---

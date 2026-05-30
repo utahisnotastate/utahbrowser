@@ -87,12 +87,12 @@ Look for: `shell ready`, `boot FAILED`, `PANIC`.
 
 ## Demo vs development
 
-| Track | Branch / tag | Launch | UI |
-|-------|----------------|--------|-----|
-| **Demo (stable)** | `demo/v1.0` or `Build-Demo.ps1` | `UtahBrowser.cmd` | Single WebView safe mode |
-| **Latest (main)** | `main` | `UtahBrowser.cmd` after `Build-Standalone.ps1` | Dual WebView + dashboard |
+| Track | Command | Launch | UI |
+|-------|---------|--------|-----|
+| **Demo (stable)** | `Build-Demo.ps1` | `UtahBrowser.cmd` | Unified compositor + demo.toml |
+| **Latest (main)** | `Build-Standalone.ps1` | `UtahBrowser.cmd` | Unified compositor + full config |
 
-See [DEMO_RELEASE.md](DEMO_RELEASE.md) for how maintainers cut demo releases.
+See [DEMO_RELEASE.md](DEMO_RELEASE.md) for maintainer release steps.
 
 ---
 

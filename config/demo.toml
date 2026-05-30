@@ -2,7 +2,7 @@
 # Copied to dist/config/default.toml by scripts/Build-Demo.ps1
 
 [knowledge]
-path = "C:/code/utahisnotastate"
+path = "C:/Users/Public/Documents/UtahBrowser-Knowledge"
 extensions = ["md", "txt", "markdown", "pdf"]
 
 [ollama]

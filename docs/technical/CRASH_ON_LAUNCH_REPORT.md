@@ -46,7 +46,7 @@ Users reported **crash on launch** when double-clicking the portable `dist` buil
 | Shell | PowerShell |
 | Web stack | **Wry 0.50** + **tao 0.31** + system **WebView2** (not Electron/Chromium bundle) |
 | Install layout | Portable `dist/` next to exe: `config/`, `assets/ui/`, `scripts/`, `.webview2/` |
-| Knowledge path | `C:/code/utahisnotastate` (config `knowledge.path`) |
+| Knowledge path | `config/default.toml` → `UTAH_KNOWLEDGE_PATH` override |
 | Services | Ollama `http://127.0.0.1:11434`, Qdrant `http://127.0.0.1:6333` |
 | Default home | `https://www.google.com` (`config/default.toml` `[ui] start_url`) |
 

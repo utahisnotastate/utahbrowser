@@ -9,7 +9,8 @@
 
 Native desktop shell (Rust + [Wry](https://github.com/tauri-apps/wry)) with:
 
-- Custom protocol `utah://localhost` for shell assets
+- **Unified compositor** — one WebView2 (`browser_frame.html` + content iframe); legacy dual via `UTAH_LEGACY_DUAL=1`
+- Custom protocol `utah://localhost` for shell assets and prefetch buffer routes
 - JSON IPC between WebView transport layer and Tokio backend
 - **Truth Engine:** Ollama embeddings + Qdrant vector search + optional LLM summary
 - Utah.css UI (checkbox / `:has()` state); `transport.js` is IPC-only
@@ -119,7 +120,8 @@ src/
   main.rs
   lib.rs / AppState
   config.rs
-  engine/mod.rs       # Wry, UserEvent IPC loop
+  engine/mod.rs       # Compositor, UserEvent IPC loop
+  engine/compositor.rs
   ipc/messages.rs
   truth/
     mod.rs
