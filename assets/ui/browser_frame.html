@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="color-scheme" content="light" />
   <title>Utah Browser</title>
   <link rel="stylesheet" href="utah.css" />
   <link rel="stylesheet" href="mockup.css" />
@@ -16,15 +16,15 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      background: var(--utah-bg, #03060c);
+      background: var(--utah-bg, #f8fafc);
     }
-    .utah-browser-chrome { flex: 0 0 auto; }
+    .utah-chrome { flex: 0 0 auto; }
     #utah-content-frame {
       flex: 1 1 auto;
       width: 100%;
       min-height: 0;
       border: 0;
-      background: #0a0e14;
+      background: #ffffff;
     }
     .utah-frame-app-link {
       margin-left: auto;
@@ -34,7 +34,7 @@
   </style>
 </head>
 <body class="utah-frame-root utah-mode-web ghost-chrome fluidic-container">
-  <header class="utah-browser-chrome" role="banner">
+  <header class="utah-chrome" role="banner">
     <button type="button" class="chrome-menu-btn" id="chrome-menu-btn" title="Menu" aria-label="Menu">☰</button>
     <div class="chrome-brand">
       <span class="brand-mark">UT</span>
@@ -68,6 +68,8 @@
     allow="fullscreen; clipboard-read; clipboard-write"
     referrerpolicy="no-referrer-when-downgrade"
   ></iframe>
+  <script src="ad-ablation.js"></script>
+  <script src="kinematic-prefetch.js"></script>
   <script src="fluidic-paint.js"></script>
   <script src="compositor.js"></script>
   <script src="intent-resolver.js"></script>

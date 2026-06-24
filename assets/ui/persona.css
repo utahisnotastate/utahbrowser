@@ -1,0 +1,86 @@
+/* assets/ui/persona.css */
+.persona-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.persona-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-group label {
+    font-size: var(--utah-font-sm);
+    color: var(--utah-muted);
+}
+
+.input-group input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--utah-border);
+    border-radius: var(--utah-radius);
+    padding: 0.75rem;
+    color: var(--utah-text);
+    width: 100%;
+}
+
+.persona-preview-area {
+    min-height: 200px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px dashed var(--utah-border);
+    border-radius: var(--utah-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.persona-success-badge {
+    background: rgba(56, 189, 248, 0.2);
+    color: var(--utah-accent);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--utah-accent);
+}
+
+.persona-log {
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #4ade80;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: var(--utah-radius);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    margin: 0 0 0.25rem 0;
+}
+
+.log-entry.ok {
+    color: #4ade80;
+}
+
+.log-entry.warn {
+    color: #fbbf24;
+}
+
+@media (max-width: 900px) {
+    .persona-layout {
+        grid-template-columns: 1fr;
+    }
+}

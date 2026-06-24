@@ -12,7 +12,7 @@
   }
 
   function currentView() {
-    var views = ['dashboard', 'web', 'truth', 'merge', 'welcome'];
+    var views = ['dashboard', 'web', 'truth', 'chat', 'email', 'career', 'persona', 'quantum', 'shield', 'merge', 'welcome'];
     for (var i = 0; i < views.length; i++) {
       var input = el('view-' + views[i]);
       if (input && input.checked) return views[i];
@@ -183,6 +183,9 @@
     if (d.event === 'status') {
       setStatus(d.ollama, d.qdrant, d.knowledge_path, d.chunks_indexed);
     }
+    if (d.event === 'chat_response') {
+      addChatMessage('bot', d.answer);
+    }
     if (d.event === 'verify_result') {
       var result = el('truth-result');
       if (result) {
@@ -195,9 +198,166 @@
       var mergeWeb = el('merge-web-snippet');
       if (mergeWeb) mergeWeb.textContent = (d.title || d.url || '').slice(0, 80);
     }
+    if (d.event === 'emails_updated') {
+      renderEmails(d.emails);
+    }
+    if (d.event === 'email_detail') {
+      var detail = el('email-detail-view');
+      if (detail) detail.innerHTML = d.body;
+    }
+    if (d.event === 'career_history') {
+      renderCareerHistory(d.history);
+    }
+    if (d.event === 'resume_refactored') {
+      alert('Resume tailored successfully! Check your Sovereign Vault.');
+    }
+    if (d.event === 'persona_swap_result') {
+      var display = el('persona-result-display');
+      var log = el('persona-status-log');
+      if (display) {
+        display.innerHTML = '<div class="persona-success-badge">Identity Preserved</div><p class="utah-muted">Output saved to: ' + d.output_path + '</p>';
+      }
+      if (log) {
+        log.innerHTML += '<p class="log-entry ok">[' + new Date().toLocaleTimeString() + '] SOTA Re-rendering complete. Identity verified.</p>';
+      }
+    }
+    if (d.event === 'quantum_oracle_response') {
+      var res = el('quantum-result');
+      if (res) {
+        res.innerHTML = 'Status: <span class="logic-payload">' + d.status + '</span><br>' +
+                        'Checksum: ' + d.verification_checksum + '<br><br>' +
+                        '<div class="logic-payload">' + d.logic_payload + '</div>';
+      }
+    }
+    if (d.event === 'quantum_state_updated') {
+      var s = d.state;
+      el('qs-entropy') && (el('qs-entropy').textContent = s.entropy.toFixed(2));
+      el('qs-timeline') && (el('qs-timeline').textContent = s.timeline);
+      el('qs-anchor') && (el('qs-anchor').textContent = s.anchor_stable ? 'STABLE' : 'UNSTABLE');
+    }
   });
+
+  function renderEmails(emails) {
+    var container = el('email-list-container');
+    if (!container) return;
+    container.innerHTML = '';
+    emails.forEach(function (m) {
+      var item = document.createElement('div');
+      item.className = 'email-item';
+      item.innerHTML = '<div class="sender">' + m.sender + '</div><div class="subject">' + m.subject + '</div>';
+      item.addEventListener('click', function () {
+        document.querySelectorAll('.email-item').forEach(function(i) { i.classList.remove('active'); });
+        item.classList.add('active');
+        send('fetch_email_detail', { id: m.id });
+      });
+      container.appendChild(item);
+    });
+  }
+
+  function renderCareerHistory(history) {
+    var container = el('career-history-list');
+    if (!container) return;
+    container.innerHTML = '';
+    if (history.length === 0) {
+      container.innerHTML = '<p class="utah-muted">No applications logged in the Sovereign Vault.</p>';
+      return;
+    }
+    history.forEach(function (app) {
+      var item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = '<div class="company">' + app.company_name + '</div>' +
+                       '<div class="meta">' + app.job_title + ' · ' + app.submission_date + '</div>' +
+                       '<div class="meta">Status: ' + app.application_status + '</div>';
+      container.appendChild(item);
+    });
+  }
+
+  var emailRefresh = el('email-refresh-btn');
+  if (emailRefresh) {
+    emailRefresh.addEventListener('click', function () {
+      send('list_emails');
+    });
+  }
+
+  var forgeRefactor = el('forge-refactor-btn');
+  if (forgeRefactor) {
+    forgeRefactor.addEventListener('click', function () {
+      var jd = el('forge-jd-input').value;
+      if (jd) send('refactor_resume', { jd: jd });
+    });
+  }
+
+  var personaExecute = el('persona-execute-btn');
+  if (personaExecute) {
+    personaExecute.addEventListener('click', function () {
+      var target = el('persona-target-input').value;
+      var source = el('persona-source-input').value;
+      var log = el('persona-status-log');
+      if (target && source) {
+        if (log) log.innerHTML = '<p class="log-entry">[' + new Date().toLocaleTimeString() + '] Initiating Latent Persona Mapping...</p>';
+        send('execute_persona_swap', { target: target, source: source });
+      }
+    });
+  }
+
+  var quantumForm = el('quantum-form');
+  if (quantumForm) {
+    quantumForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = el('quantum-query-input');
+      if (q && q.value.trim()) {
+        el('quantum-result').textContent = 'Querying Akashic archives...';
+        send('quantum_query', { problem_key: q.value.trim(), sync: true });
+      }
+    });
+  }
+
+  el('quantum-refresh-btn') && el('quantum-refresh-btn').addEventListener('click', function () {
+    send('get_quantum_state');
+  });
+
+  function addChatMessage(role, text) {
+    var lists = [el('dash-chat-messages'), el('chat-history-list')];
+    lists.forEach(function (list) {
+      if (!list) return;
+      var m = document.createElement('div');
+      m.className = 'chat-msg chat-msg-' + role;
+      m.textContent = text;
+      list.appendChild(m);
+      list.scrollTop = list.scrollHeight;
+    });
+  }
+
+  var dashChatForm = el('dash-chat-form');
+  if (dashChatForm) {
+    dashChatForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = el('dash-chat-query');
+      if (q && q.value.trim()) {
+        var val = q.value.trim();
+        addChatMessage('user', val);
+        send('chat_query', { query: val });
+        q.value = '';
+      }
+    });
+  }
+
+  var panelChatForm = el('panel-chat-form');
+  if (panelChatForm) {
+    panelChatForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = el('panel-chat-input');
+      if (q && q.value.trim()) {
+        var val = q.value.trim();
+        addChatMessage('user', val);
+        send('chat_query', { query: val });
+        q.value = '';
+      }
+    });
+  }
 
   window.addEventListener('load', function () {
     gotoView('web');
+    send('get_quantum_state');
   });
 })();

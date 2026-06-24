@@ -1,167 +1,100 @@
-/**
- * Ghost-Chrome fluidic tiles — container-query layout + optional Houdini paint.
- */
-
-.fluidic-container {
-  background-image: paint(fluidic-geometry);
-  --fluid-color: #00f2ff;
-  --fluid-density: 0.45;
+/* assets/ui/fluidic.css */
+:root {
+    --bg-void: #f8fafc;
+    --glass-base: rgba(0, 0, 0, 0.03);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --text-primary: #1e293b;
+    --text-muted: #64748b;
+    --accent-glow: rgba(59, 130, 246, 0.4);
 }
 
-@supports not (background-image: paint(id)) {
-  .fluidic-container {
+/* The Core Card Substrate */
+.fluid-card {
+    position: relative;
+    width: 320px;
+    height: 220px;
+    background: var(--glass-base);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease, border-color 0.3s ease;
+    cursor: pointer;
+}
+
+.fluid-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* The Dynamic Cursor Glow */
+.card-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
     background: radial-gradient(
-      ellipse 120% 80% at 20% 0%,
-      rgba(0, 242, 255, 0.12),
-      transparent 55%
+        circle 400px at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+        var(--accent-glow),
+        transparent 40%
     );
-  }
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-body.sensory-focus {
-  --utah-accent: var(--sensory-accent, #ff6b4a);
-  --utah-bg: #050508;
+.fluid-card:hover .card-glow {
+    opacity: 1;
 }
 
-body.sensory-calm {
-  --utah-accent: var(--sensory-accent, #3dd68c);
-  --utah-bg: #03060c;
+/* Volumetric Content Layer */
+.card-content {
+    position: absolute;
+    inset: 0;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    pointer-events: none;
+    /* Pushes content forward on the Z-axis */
+    transform: translateZ(40px);
 }
 
-.utah-shell-app,
-.utah-stage,
-.dash-grid,
-.truth-grid {
-  container-type: inline-size;
-  container-name: utah-shell;
+.card-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    color: #38bdf8;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
 }
 
-/* Organic floating tiles */
-.fluid-tile,
-.glass-card {
-  container-type: inline-size;
-  border-radius: clamp(1rem, 3cqi, 1.75rem);
-  transition:
-    transform 0.35s var(--ease, cubic-bezier(0.22, 1, 0.36, 1)),
-    box-shadow 0.35s var(--ease, cubic-bezier(0.22, 1, 0.36, 1));
+.card-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
 }
 
-.fluid-tile:hover,
-.glass-card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.35),
-    0 0 24px var(--utah-glow, rgba(212, 175, 55, 0.25));
+.card-text {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.5;
 }
 
-@container utah-shell (max-width: 52rem) {
-  .dash-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .chrome-tabs-wrap {
-    max-width: 42cqi;
-  }
-}
-
-@container utah-shell (min-width: 52rem) {
-  .dash-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .card-graph {
-    grid-column: span 2;
-  }
-}
-
-@container (max-width: 22rem) {
-  .launch-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .chrome-brand .brand-name {
-    display: none;
-  }
-}
-
-/* Truth Guard — live verification glow (Ghost-Chrome) */
-.panel-truth,
-.truth-verify-card {
-  position: relative;
-}
-
-.panel-truth::before,
-.truth-verify-card.utah-verifying::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  box-shadow: 0 0 0 2px rgba(255, 180, 80, 0.45);
-  transition: opacity 0.4s ease;
-}
-
-.truth-verify-card.utah-verifying::before,
-.panel-truth:has(.utah-flagged)::before {
-  opacity: 1;
-  animation: truth-pulse 2s ease-in-out infinite;
-}
-
-@keyframes truth-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px rgba(255, 180, 80, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 20px 4px rgba(255, 180, 80, 0.55);
-  }
-}
-
-.truth-float-tile {
-  backdrop-filter: blur(14px);
-  background: rgba(12, 18, 30, 0.72);
-  border: 1px solid rgba(212, 175, 90, 0.22);
-  border-radius: 1.25rem;
-  padding: 1rem 1.15rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-/* Ghost-Chrome: soften rigid panel edges */
-.utah-browser-chrome {
-  border-radius: 0 0 1rem 1rem;
-}
-
-.launch-tile {
-  border-radius: 999px;
-  border: 1px solid var(--utah-border);
-  background: radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.12), transparent 60%),
-    rgba(0, 0, 0, 0.35);
-}
-
-.chrome-bookmarks {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0.35rem;
-  padding: 0.25rem 0.5rem 0.4rem;
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.utah-bookmark-float {
-  position: fixed;
-  z-index: 99999;
-  pointer-events: none;
-  padding: 0.35rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  background: rgba(0, 242, 255, 0.2);
-  border: 1px solid rgba(0, 242, 255, 0.45);
-  backdrop-filter: blur(12px);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.utah-bookmark-float-active {
-  opacity: 1;
-}
+/* Toggle Switch Styling for Settings */
+.toggle-container { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; pointer-events: auto; }
+.switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #38bdf8; }
+input:checked + .slider:before { transform: translateX(26px); }

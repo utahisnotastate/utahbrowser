@@ -75,7 +75,6 @@ pub fn acquire_instance_lock() -> Result<InstanceLock> {
 
 #[cfg(windows)]
 fn process_is_alive(pid: u32) -> bool {
-    use std::ptr::null_mut;
     const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
     #[link(name = "kernel32")]
     extern "system" {

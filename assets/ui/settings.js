@@ -158,4 +158,40 @@
       send('get_calibration_console');
     });
   });
+
+  // Fluidic Reality Toggle Logic
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggle = el('fluidic-toggle');
+    const statusText = el('toggle-status-text');
+
+    if (toggle) {
+        // 1. Read the database on load to set the switch correctly
+        // We use a fallback to localStorage if chrome.storage is not available in the shell
+        const storage = (window.chrome && chrome.storage && chrome.storage.local) ? chrome.storage.local : {
+            get: (keys, cb) => cb({ fluidicEnabled: localStorage.getItem('fluidicEnabled') === 'true' }),
+            set: (obj, cb) => {
+                for (let key in obj) localStorage.setItem(key, obj[key]);
+                if (cb) cb();
+            }
+        };
+
+        storage.get(['fluidicEnabled'], function(result) {
+            toggle.checked = result.fluidicEnabled === true;
+            if (statusText) statusText.innerText = toggle.checked ? "Enabled (Requires Refresh)" : "Disabled";
+        });
+
+        // 2. Listen for the user clicking the switch
+        toggle.addEventListener('change', function() {
+            const isEnabled = this.checked;
+            
+            // Write the new choice to the database
+            storage.set({ fluidicEnabled: isEnabled }, function() {
+                if (statusText) statusText.innerText = isEnabled ? "Enabled (Requires Refresh)" : "Disabled";
+                console.log("[UTAH BROWSER] Override setting changed to: " + isEnabled);
+                // Also notify the backend if needed
+                send('set_fluidic_override', { enabled: isEnabled });
+            });
+        });
+    }
+  });
 })();

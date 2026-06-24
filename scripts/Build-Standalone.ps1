@@ -61,7 +61,7 @@ Logs (primary + mirror):
 
 Recovery / safe mode:  %APPDATA%\UtahBrowser\recovery.json
 
-Default home page: https://www.google.com (Web view).
+Default home page: https://www.cia.gov (Web view).
 "@ | Set-Content (Join-Path $OutDir 'README.txt') -Encoding UTF8
 
     Write-Host "`n==> Standalone build ready" -ForegroundColor Green

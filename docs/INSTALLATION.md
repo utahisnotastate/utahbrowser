@@ -1,139 +1,99 @@
-# Installation guide
+# SOTA Installation Guide: The Zero-Click Kernel
 
-**Repository:** [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
+**Welcome to the Utah-Omega-23 Deployment Matrix.**
 
-This guide describes the **Zero-Click Kernel** (`scripts/install.ps1`) end to end.
-
----
-
-## Prerequisites
-
-| Requirement | Why |
-|-------------|-----|
-| **Windows 10/11** with **WebView2** | Renders the browser shell (usually preinstalled) |
-| **Rust** ([rustup.rs](https://rustup.rs/)) | Compiles `utah-browser.exe` |
-| **Ollama** ([ollama.com](https://ollama.com/)) | Local embeddings + optional summaries |
-| **Internet (first run)** | One-time Qdrant binary download (~50 MB); Ollama model pull |
-
-**Docker is not required.** Qdrant runs as a **native Windows binary** downloaded automatically.
+This guide details the procedure for deploying the Utah Browser Sovereign Workstation. We utilize a **Zero-Click Kernel** (`scripts/install.ps1`) to orchestrate the environment, services, and compilation in a single execution.
 
 ---
 
-## One-command install
+## 1. Prerequisites
 
-From the **repository root** (recommended):
+Before initiating the kernel, ensure your host machine meets the following cryptographic and operational standards:
+
+| Requirement | Purpose | Source |
+|-------------|---------|--------|
+| **Windows 10/11** | Core OS with WebView2 Runtime | Pre-installed |
+| **Rust Toolchain** | Native performance & memory safety | [rustup.rs](https://rustup.rs/) |
+| **Ollama** | Local Large Language Model (LLM) host | [ollama.com](https://ollama.com/) |
+| **Git** | Source control and P2P updates | [git-scm.com](https://git-scm.com/) |
+
+**Note:** Unlike inferior browsers, Utah **does not require Docker**. We utilize a native Windows binary for Qdrant to ensure zero-latency local vector search.
+
+---
+
+## 2. Standard Installation (Recommended)
+
+Execute the following commands in an elevated PowerShell terminal to initialize the workstation:
 
 ```powershell
-cd C:\code\utahbrowser
-.\scripts\install.ps1 -KnowledgePath "C:\path\to\your\notebooks"
+# Clone the sovereign repository
+git clone https://github.com/utahisnotastate/utahbrowser.git
+cd utahbrowser
+
+# Execute the Zero-Click Kernel
+# Optional: Use -KnowledgePath to point Truth Guard to your existing notebooks
+.\scripts\install.ps1 -KnowledgePath "C:\MyNotebooks"
 ```
 
-Running from `scripts\` also works; the installer resolves the project root automatically.
+### What the Kernel Orchestrates:
+1. **Ollama Health Check:** Verifies the local LLM server is responding.
+2. **Qdrant Bootstrap:** Downloads the SOTA native Windows binary, initializes the database, and creates the sovereign history collection.
+3. **Model Pull:** Automatically retrieves the required embedding and chat models (`nomic-embed-text`, `llama3`, etc.).
+4. **Rust Compilation:** Executes a high-performance release build with optimized LTO.
+5. **Distribution Assembly:** Packages the binaries, assets, and configurations into the `dist/` folder.
 
 ---
 
-## What the installer does (in order)
+## 3. Specialized Build Targets
 
-| Phase | Action |
-|-------|--------|
-| **1. Ollama** | Ping `http://127.0.0.1:11434/api/tags` |
-| **2. Qdrant** | Check port 6333; if offline → download [Qdrant release](https://github.com/qdrant/qdrant/releases) → start `qdrant.exe` → create collection |
-| **3. Models** | `ollama pull` for `embed_model` and `chat_model` from `config/default.toml` |
-| **4. Build** | `cargo build --release` (auto-repair on cache errors) |
-| **5. Qdrant recheck** | Ensure API still up before packaging |
-| **6. Dist** | Copy exe, config, assets, scripts → `dist/` |
+Depending on your operational requirements, choose the appropriate build script:
 
----
-
-## Demo vs full install
-
-| Goal | Command | Notes |
-|------|---------|-------|
-| **Stable demo** (evaluators) | `.\scripts\Build-Demo.ps1` | [DEMO.md](DEMO.md), `UtahBrowser.cmd`, safe mode |
-| **Full dev build** | `.\scripts\Build-Standalone.ps1` | Latest `main` features, unified compositor |
-| **Everything + services** | `.\scripts\deploy_sovereign.ps1` | Install + optional Ghost-Link |
+| Goal | Script | Outcome |
+|------|--------|---------|
+| **Stable Demo** | `.\scripts\Build-Demo.ps1` | A safe, self-contained demo environment with pre-set configurations. |
+| **Full Workstation** | `.\scripts\Build-Standalone.ps1` | The complete SOTA build with all experimental features enabled. |
+| **Enterprise Deployment** | `.\scripts\deploy_sovereign.ps1` | A portable, zero-dependency package ready for distribution. |
 
 ---
 
-## Outputs in `dist/`
+## 4. Post-Installation Launch
 
-| File | Purpose |
-|------|---------|
-| `utah-browser.exe` | The browser |
-| **`UtahBrowser.cmd`** | **Recommended launcher** (demo + dev) |
-| `UtahBrowser.exe` | Launcher without space in filename |
-| `Launch-UtahBrowser.ps1` | PowerShell launcher |
-| `DEMO.txt` / `DEMO.md` | Present when built with `Build-Demo.ps1` |
-| `config/`, `assets/`, `scripts/` | Runtime bundle |
-
-**Logs:** `%APPDATA%\UtahBrowser\logs\browser.log` (see [DEMO.md](DEMO.md))
-
----
-
-## Installer flags
-
-| Flag | Effect |
-|------|--------|
-| `-KnowledgePath <path>` | Sets notebook folder for Truth Guard (requires Qdrant to start) |
-| `-SkipBuild` | Health + models only; no compile |
-| `-SkipHealth` | Build/package only; skip Ollama/Qdrant |
-| `-SkipPull` | Do not run `ollama pull` |
-| `-SkipQdrantStart` | Do not auto-start Qdrant (native or Docker) |
-| `-ForcePull` | Re-download Ollama models even if present |
-| `-RepairOnly` | `cargo clean` + rebuild only |
-
----
-
-## After install
+Navigate to the distribution directory and execute the master launcher:
 
 ```powershell
 cd dist
 .\UtahBrowser.cmd
 ```
 
-Or: `.\dist\Launch-UtahBrowser.ps1` — do **not** use `.\Utah Browser.exe` in PowerShell without quotes.
-
-Or from repo root during development:
-
-```powershell
-cargo run --release
-```
+**Launch Options:**
+- `.\UtahBrowser.cmd`: Standard optimized launcher.
+- `.\Launch-UtahBrowser.ps1`: PowerShell-native launcher with advanced logging.
+- `cargo run --release`: For real-time development and debugging.
 
 ---
 
-## Qdrant data locations
+## 5. Directory Structure & Logs
 
-| Path | Contents |
-|------|----------|
-| `%LOCALAPPDATA%\UtahBrowser\qdrant\` | Native binary, storage, config, logs |
-| `%LOCALAPPDATA%\UtahBrowser\qdrant\bin\qdrant.exe` | Downloaded server |
-| `qdrant.out.log` / `qdrant.err.log` | Process logs |
-
-Project-local override: `.utah-browser\qdrant\` when using a dev tree.
-
----
-
-## Troubleshooting
-
-| Issue | Doc |
-|-------|-----|
-| Rust build failed | [BUILD_TROUBLESHOOTING.md](guides/BUILD_TROUBLESHOOTING.md) |
-| Qdrant won't start | [QDRANT_AND_SERVICES.md](guides/QDRANT_AND_SERVICES.md) |
-| General use | [FOR_EVERYONE.md](guides/FOR_EVERYONE.md) |
-
-Quick repairs:
-
-```powershell
-.\scripts\Repair-BuildEnvironment.ps1
-.\scripts\Ensure-Qdrant.ps1
-.\scripts\install.ps1 -KnowledgePath "C:\path\to\notebooks"
-```
+| Path | Description |
+|------|-------------|
+| `dist/` | The compiled, portable workstation. |
+| `%LOCALAPPDATA%\UtahBrowser\qdrant\` | Native Qdrant binary and local vector data. |
+| `%APPDATA%\UtahBrowser\logs\` | Runtime diagnostics and IPC nexus logs. |
+| `%APPDATA%\UtahBrowser\extensions\` | Your vibe-coded WASM extensions. |
 
 ---
 
-## Exit codes
+## 6. Troubleshooting
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success (Ollama + Qdrant healthy when health checks ran) |
-| `2` | Dist may exist but Ollama or Qdrant was unhealthy |
+| Issue | Resolution |
+|-------|------------|
+| **Rust Build Error** | Run `.\scripts\Repair-BuildEnvironment.ps1` to clear caches. |
+| **Ollama Offline** | Ensure the Ollama tray icon is visible or run `ollama serve`. |
+| **Qdrant Connection Failed** | Run `.\scripts\Ensure-Qdrant.ps1` to re-initialize the native service. |
+| **UI Not Rendering** | Ensure Microsoft Edge WebView2 Runtime is up to date. |
+
+For advanced diagnostics, consult [docs/technical/CRASH_ON_LAUNCH_REPORT.md](technical/CRASH_ON_LAUNCH_REPORT.md).
+
+---
+
+**Mastery Log:** Installation matrix synchronized. You are now ready to reclaim your sovereignty.

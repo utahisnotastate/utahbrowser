@@ -3,7 +3,7 @@
  * View state is CSS-driven (:target / :has); this file does not own app state.
  */
 (function () {
-  var homeUrl = window.__utahHomeUrl || 'https://www.google.com';
+  var homeUrl = window.__utahHomeUrl || 'https://www.cia.gov';
   var tabs = [];
   var activeTabId = 0;
 
@@ -14,6 +14,28 @@
 
   function el(id) {
     return document.getElementById(id);
+  }
+
+  function updateActiveTabUI() {
+    var strip = el('tab-strip');
+    if (!strip) return;
+    Array.from(strip.querySelectorAll('.utah-tab')).forEach(function (btn) {
+      var id = parseInt(btn.dataset.tabId);
+      var active = (id === activeTabId);
+      btn.classList.toggle('utah-tab-active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
+  function updateTabUI(tab) {
+    var strip = el('tab-strip');
+    if (!strip) return;
+    var btn = strip.querySelector('.utah-tab[data-tab-id="' + tab.id + '"]');
+    if (btn) {
+      var title = btn.querySelector('.utah-tab-title');
+      if (title) title.textContent = tab.title || tab.url || 'Memory Brick';
+      btn.classList.toggle('utah-tab-suspended', !!tab.suspended);
+    }
   }
 
   function renderTabs() {
@@ -138,6 +160,53 @@
     });
   }
 
+  function renderShield(metrics) {
+    var total = el('shield-total-blocked');
+    var dashCount = el('dash-shield-count');
+    if (total) total.textContent = metrics.total_threats_prevented || 0;
+    if (dashCount) dashCount.textContent = metrics.total_threats_prevented || 0;
+
+    var list = el('shield-category-list');
+    if (list) {
+      list.innerHTML = '';
+      var breakdown = metrics.breakdown || {};
+      Object.keys(breakdown).forEach(function (cat) {
+        var item = document.createElement('div');
+        item.className = 'metric-item';
+        item.innerHTML = '<span>' + cat + '</span><strong>' + breakdown[cat] + '</strong>';
+        list.appendChild(item);
+      });
+    }
+
+    var tbody = el('shield-logs-table') ? el('shield-logs-table').querySelector('tbody') : null;
+    if (tbody) {
+      tbody.innerHTML = '';
+      (metrics.last_events || []).forEach(function (ev) {
+        var tr = document.createElement('tr');
+        var date = new Date(ev.timestamp * 1000).toLocaleTimeString();
+        var catClass = ev.category.toLowerCase().split(' ')[0];
+        tr.innerHTML = '<td>' + date + '</td>' +
+                       '<td><span class="log-category ' + catClass + '">' + ev.category + '</span></td>' +
+                       '<td title="' + ev.url + '">' + (ev.url.length > 50 ? ev.url.substring(0, 47) + '...' : ev.url) + '</td>' +
+                       '<td>Blocked</td>';
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  function showNotification(text, type) {
+    var container = el('utah-notifications');
+    if (!container) return;
+    var toast = document.createElement('div');
+    toast.className = 'utah-toast toast-' + (type || 'info');
+    toast.innerHTML = '<span>⛨</span><div>' + text + '</div>';
+    container.appendChild(toast);
+    setTimeout(function() {
+      toast.classList.add('fade-out');
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 4000);
+  }
+
   function syncUrlBar(url) {
     var input = el('url');
     if (input && document.activeElement !== input) input.value = url || '';
@@ -208,6 +277,21 @@
       if (d.home_url) homeUrl = d.home_url;
       renderTabs();
     }
+    if (d.event === 'active_tab_changed') {
+      activeTabId = d.active_id;
+      updateActiveTabUI();
+    }
+    if (d.event === 'tab_metadata_updated') {
+      (function() {
+        var idx = tabs.findIndex(function(t) { return t.id === d.tab.id; });
+        if (idx !== -1) {
+          tabs[idx] = d.tab;
+          updateTabUI(d.tab);
+        } else {
+          send('sync_browser');
+        }
+      })();
+    }
     if (d.event === 'navigation_changed') syncUrlBar(d.url);
     if (d.event === 'bookmarks_updated') renderBookmarks(d.bookmarks);
     if (d.event === 'spatial_bookmarks') {
@@ -215,6 +299,18 @@
       renderBookmarks(d.hits);
     }
     if (d.event === 'extensions_updated') renderExtensions(d.extensions);
+    if (d.event === 'shield_updated') {
+        renderShield(d.metrics);
+        var last = d.metrics.last_events ? d.metrics.last_events[0] : null;
+        if (last && (Date.now() / 1000 - last.timestamp) < 2) {
+            showNotification('Blocked ' + last.category, 'ok');
+        }
+    }
+    if (d.event === 'error') {
+        if (d.message.indexOf('Shield Blocked') !== -1) {
+            showNotification(d.message, 'error');
+        }
+    }
     if (d.event === 'prefetch_buffered' && window.utahPreloadBuffer) {
       window.utahPreloadBuffer(d.buffer_uri, d.url);
     }
@@ -249,4 +345,5 @@
   send('sync_browser');
   send('list_extensions');
   send('get_ghost_link_status');
+  send('get_shield_metrics');
 })();

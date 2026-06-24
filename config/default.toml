@@ -36,7 +36,7 @@ debounce_ms = 5000
 proposals_dir = "evolution/proposals"
 
 [ui]
-start_url = "https://www.google.com"
+start_url = "https://www.cia.gov"
 window_title = "Utah Browser // V1.0-GENESIS"
 
 [browser]

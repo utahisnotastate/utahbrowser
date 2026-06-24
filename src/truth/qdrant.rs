@@ -18,10 +18,10 @@ struct UpsertBody {
 }
 
 #[derive(Serialize)]
-struct PointStruct {
-    id: String,
-    vector: Vec<f32>,
-    payload: serde_json::Value,
+pub struct PointStruct {
+    pub id: String,
+    pub vector: Vec<f32>,
+    pub payload: serde_json::Value,
 }
 
 #[derive(Deserialize)]
@@ -100,25 +100,31 @@ impl QdrantClient {
         vector: Vec<f32>,
         payload: serde_json::Value,
     ) -> Result<()> {
+        self.upsert_points(vec![PointStruct {
+            id: id.to_string(),
+            vector,
+            payload,
+        }])
+        .await
+    }
+
+    pub async fn upsert_points(&self, points: Vec<PointStruct>) -> Result<()> {
+        if points.is_empty() {
+            return Ok(());
+        }
         let url = format!(
             "{}/collections/{}/points",
             self.base(),
             self.config.collection
         );
-        let body = UpsertBody {
-            points: vec![PointStruct {
-                id: id.to_string(),
-                vector,
-                payload,
-            }],
-        };
+        let body = UpsertBody { points };
         self.http
             .put(&url)
             .json(&body)
             .send()
             .await?
             .error_for_status()
-            .context("qdrant upsert")?;
+            .context("qdrant batch upsert")?;
         Ok(())
     }
 

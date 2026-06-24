@@ -53,6 +53,10 @@ desktop.ini
 # --- Logs & diagnostics ---
 *.log
 health-report.json
+*.db
+.qdrant-initialized
+/storage/
+/snapshots/
 
 # --- Python ---
 __pycache__/

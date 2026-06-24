@@ -20,6 +20,7 @@ try {
 
     $OutDir = Join-Path $Root 'dist'
     $ReleaseDir = Join-Path $Root 'release'
+    if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $OutDir, (Join-Path $OutDir 'logs'), (Join-Path $OutDir 'scripts') | Out-Null
 
     Copy-Item (Join-Path $Root 'target\release\utah-browser.exe') (Join-Path $OutDir 'utah-browser.exe') -Force
@@ -29,6 +30,8 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $OutDir 'config') | Out-Null
     Copy-Item (Join-Path $Root 'config\demo.toml') (Join-Path $OutDir 'config\default.toml') -Force
     Copy-Item (Join-Path $Root 'assets') (Join-Path $OutDir 'assets') -Recurse -Force
+    Copy-Item (Join-Path $Root 'flux') (Join-Path $OutDir 'flux') -Recurse -Force
+    Copy-Item (Join-Path $Root 'urm') (Join-Path $OutDir 'urm') -Recurse -Force
     Copy-Item (Join-Path $Root 'scripts\kernel') (Join-Path $OutDir 'scripts\kernel') -Recurse -Force
     Copy-Item (Join-Path $Root 'scripts\Ensure-Services.ps1') (Join-Path $OutDir 'scripts\Ensure-Services.ps1') -Force
 

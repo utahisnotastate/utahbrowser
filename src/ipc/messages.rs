@@ -73,6 +73,34 @@ pub enum IpcRequest {
         scroll_y: Option<f32>,
     },
     ListMemoryAnchors,
+    SaveTabState {
+        tab_id: u32,
+        scroll_x: f32,
+        scroll_y: f32,
+        dom_snapshot: Option<String>,
+    },
+    ChatQuery {
+        query: String,
+    },
+    GhostLinkIncognito {
+        enabled: bool,
+    },
+    ListEmails,
+    FetchEmailDetail { id: String },
+    RefactorResume { jd: String },
+    SubmitApplication { company: String, title: String },
+    GetCareerHistory,
+    ExecutePersonaSwap { target: String, source: String },
+    QuantumQuery {
+        problem_key: String,
+        sync: bool,
+    },
+    GetQuantumState,
+    GetShieldMetrics,
+    ReportShieldBlock {
+        url: String,
+        category: String,
+    },
 }
 
 /// Responses pushed back to the UI via `evaluate_script`.
@@ -93,6 +121,12 @@ pub enum IpcEvent {
         tabs: Vec<TabPayload>,
         active_id: u32,
         home_url: String,
+    },
+    ActiveTabChanged {
+        active_id: u32,
+    },
+    TabMetadataUpdated {
+        tab: TabPayload,
     },
     NavigationChanged {
         tab_id: u32,
@@ -143,6 +177,27 @@ pub enum IpcEvent {
     },
     ContextInjected {
         queued: usize,
+    },
+    ChatResponse {
+        answer: String,
+        sources: Vec<String>,
+    },
+    EmailsUpdated { emails: Vec<EmailPayload> },
+    EmailDetail { body: String },
+    ResumeRefactored { tailored_resume: String },
+    CareerHistory { history: Vec<CareerPayload> },
+    PersonaSwapResult { status: String, output_path: String },
+    QuantumOracleResponse {
+        problem_key: String,
+        logic_payload: String,
+        status: String,
+        verification_checksum: String,
+    },
+    QuantumStateUpdated {
+        state: QuantumStatePayload,
+    },
+    ShieldUpdated {
+        metrics: serde_json::Value,
     },
 }
 
@@ -241,6 +296,29 @@ pub struct VerifyResultPayload {
     pub similarity: f32,
     pub summary: String,
     pub matched_sources: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailPayload {
+    pub id: String,
+    pub sender: String,
+    pub subject: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CareerPayload {
+    pub id: u32,
+    pub company_name: String,
+    pub job_title: String,
+    pub submission_date: String,
+    pub application_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuantumStatePayload {
+    pub entropy: f32,
+    pub timeline: String,
+    pub anchor_stable: bool,
 }
 
 impl IpcRequest {

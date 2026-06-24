@@ -12,7 +12,10 @@ pub use verify::VerificationResult;
 use crate::binding::SemanticBindingStore;
 use crate::config::AppConfig;
 use anyhow::Result;
+use futures_util::future::join_all;
 use std::path::Path;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Orchestrates notebook ingestion, embedding, and verification.
@@ -21,6 +24,7 @@ pub struct TruthEngine {
     ollama: ollama::OllamaClient,
     qdrant: qdrant::QdrantClient,
     chunks_indexed: AtomicUsize,
+    embedding_cache: Mutex<HashMap<String, Vec<f32>>>,
 }
 
 impl TruthEngine {
@@ -30,7 +34,26 @@ impl TruthEngine {
             qdrant: qdrant::QdrantClient::new(config.qdrant.clone()),
             chunks_indexed: AtomicUsize::new(0),
             config,
+            embedding_cache: Mutex::new(HashMap::new()),
         }
+    }
+
+    async fn get_embedding(&self, text: &str) -> Result<Vec<f32>> {
+        {
+            let cache = self.embedding_cache.lock().unwrap();
+            if let Some(v) = cache.get(text) {
+                return Ok(v.clone());
+            }
+        }
+        let v = self.ollama.embed(text).await?;
+        {
+            let mut cache = self.embedding_cache.lock().unwrap();
+            // Limit cache size to ~10,000 entries to prevent memory bloat
+            if cache.len() < 10000 {
+                cache.insert(text.to_string(), v.clone());
+            }
+        }
+        Ok(v)
     }
 
     pub fn chunks_indexed(&self) -> usize {
@@ -112,31 +135,36 @@ impl TruthEngine {
                 self.config.truth.chunk_chars,
                 self.config.truth.chunk_overlap,
             );
-            for (idx, chunk) in chunks.iter().enumerate() {
-                let vector = self.ollama.embed(chunk).await?;
-                let point_id = embed::point_id(&format!("{}#{}", zone_id, doc.source), idx);
-                self.qdrant
-                    .upsert_point(
-                        &point_id,
-                        vector,
-                        serde_json::json!({
-                            "source": doc.source,
-                            "chunk_index": idx,
-                            "text": chunk,
-                            "zone_id": zone_id,
-                            "zone_weight": zone_weight,
-                        }),
-                    )
-                    .await?;
-                total += 1;
+            let mut points = Vec::with_capacity(chunks.len());
+            let mut embedding_futures = Vec::new();
+            for chunk in &chunks {
+                embedding_futures.push(self.get_embedding(chunk));
             }
+            let results = join_all(embedding_futures).await;
+            for (idx, (chunk, vector_res)) in chunks.iter().zip(results).enumerate() {
+                let vector = vector_res?;
+                let point_id = embed::point_id(&format!("{}#{}", zone_id, doc.source), idx);
+                points.push(qdrant::PointStruct {
+                    id: point_id,
+                    vector,
+                    payload: serde_json::json!({
+                        "source": doc.source,
+                        "chunk_index": idx,
+                        "text": chunk,
+                        "zone_id": zone_id,
+                        "zone_weight": zone_weight,
+                    }),
+                });
+            }
+            self.qdrant.upsert_points(points).await?;
+            total += chunks.len();
         }
         Ok(total)
     }
 
     /// Embed text via local Ollama (semantic bookmarks, search, etc.).
     pub async fn embed(&self, text: &str) -> Result<Vec<f32>> {
-        self.ollama.embed(text).await
+        self.get_embedding(text).await
     }
 
     pub fn qdrant(&self) -> &qdrant::QdrantClient {
@@ -155,7 +183,7 @@ impl TruthEngine {
         text: &str,
     ) -> Result<()> {
         services::ensure_qdrant_ready(&self.config, &self.qdrant).await?;
-        let vector = self.ollama.embed(text).await?;
+        let vector = self.get_embedding(text).await?;
         let point_id = embed::point_id(&format!("inject:{source}:{label}"), 0);
         self.qdrant
             .upsert_point(
@@ -183,5 +211,34 @@ impl TruthEngine {
             &self.qdrant,
         )
         .await
+    }
+
+    /// Ask a question against the local corpus (history + files).
+    pub async fn ask_question(&self, query: &str) -> Result<(String, Vec<String>)> {
+        services::ensure_qdrant_ready(&self.config, &self.qdrant).await?;
+        let vector = self.get_embedding(query).await?;
+        let hits = self.qdrant.search(vector, self.config.truth.max_context_chunks).await?;
+        
+        let mut context_snippets = Vec::new();
+        let mut matched_sources = Vec::new();
+        for (_, payload) in hits {
+            if let Some(src) = payload.get("source").and_then(|v| v.as_str()) {
+                if !matched_sources.contains(&src.to_string()) {
+                    matched_sources.push(src.to_string());
+                }
+            }
+            if let Some(t) = payload.get("text").and_then(|v| v.as_str()) {
+                context_snippets.push(t.to_string());
+            }
+        }
+        
+        let ctx = context_snippets.join("\n---\n");
+        let system = "You are the Utah Sovereign History Assistant. Answer the user's question \
+            based ONLY on the provided local history and file snippets. If the answer is not in \
+            the snippets, say you don't know based on local knowledge. Keep it private and local.";
+        let user = format!("CONTEXT:\n{ctx}\n\nQUESTION: {query}");
+        
+        let answer = self.ollama.complete(system, &user).await?;
+        Ok((answer, matched_sources))
     }
 }

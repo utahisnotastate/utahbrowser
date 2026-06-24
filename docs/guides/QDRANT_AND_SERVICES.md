@@ -1,123 +1,80 @@
-# Qdrant & local services
+# Sovereign Intelligence Stack: Ollama & Qdrant
 
-How Utah Browser runs **Ollama** and **Qdrant** without Docker by default.
+**The intelligence of the Utah Browser is entirely localized.** 
 
-**Repository:** [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
+We utilize a combination of high-performance vector search and large language model inference to power the Truth Guard and Sovereign History Oracle. This guide explains how these services are orchestrated without cloud dependencies.
 
----
+## 1. The Stack Overview
 
-## Overview
+| Service | Protocol | Role | Source |
+|---------|----------|------|--------|
+| **Ollama** | REST | Embedding Generation & Synthesis | [ollama.com](https://ollama.com/) |
+| **Qdrant** | REST/gRPC | Local Vector Search Engine | [qdrant.tech](https://qdrant.tech/) |
 
-| Service | Role | Default URL |
-|---------|------|-------------|
-| **Ollama** | Embeddings + optional text summaries | `http://127.0.0.1:11434` |
-| **Qdrant** | Vector search over notebook chunks | `http://127.0.0.1:6333` |
-
-Both must be reachable before **Ingest Notebooks** or **Verify** in the UI.
+Both services must be active for the **Truth-Lens** to function. Utah Browser automatically manages these lifecycles.
 
 ---
 
-## Qdrant without Docker (default)
+## 2. Zero-Dependency Qdrant (Native)
 
-The installer and launcher use **`Ensure-QdrantReady`**:
+Unlike standard implementations that require Docker, Utah Browser utilizes a **Native Windows Bootstrap**:
 
-1. Ping `http://127.0.0.1:6333` (`/readyz`, `/healthz`, or `/collections`)
-2. If offline → download official Windows binary from [Qdrant releases](https://github.com/qdrant/qdrant/releases) (pinned in `scripts/kernel/QdrantNative.ps1`)
-3. Write config + start `qdrant.exe` in the background
-4. Wait until API responds (up to 60 seconds)
-5. Create collection `utah_notebooks` (from `config/default.toml`) if missing
-6. If native start fails **and** Docker is installed → try container `utah-qdrant`
+1. **Auto-Detection:** The browser pings `localhost:6333` on startup.
+2. **Bootstrap:** If offline, the **Zero-Click Kernel** downloads the SOTA Qdrant binary directly from GitHub.
+3. **Execution:** The service is launched as a hidden background process with its own PID management.
+4. **Initialization:** The `utah_notebooks` collection is created automatically using optimized distance metrics (Cosine Similarity).
 
-### Storage location
+### Data Sovereignty Location:
+All indexed knowledge is stored in:
+`%LOCALAPPDATA%\UtahBrowser\qdrant\storage\`
 
+---
+
+## 3. Ollama Integration
+
+Ollama provides the neural power for the Utah Browser. The following models are automatically pulled and managed by the installation kernel:
+
+- **`nomic-embed-text`**: Used for high-dimensional vectorization of your browsing history and notebooks.
+- **`llama3`**: Used for the Sovereign History Oracle chat and complex statement verification.
+
+To verify status:
+```powershell
+ollama list
 ```
-%LOCALAPPDATA%\UtahBrowser\qdrant\
-  bin\qdrant.exe
-  storage\          # vector data
-  config.yaml
-  qdrant.pid
-  qdrant.out.log
-  qdrant.err.log
-```
 
 ---
 
-## Manual Qdrant commands
+## 4. Lifecycle Orchestration
+
+The browser manages services through three distinct layers:
+1. **The Kernel:** `scripts/install.ps1` performs the initial setup and model pulling.
+2. **The Launcher:** `Launch-UtahBrowser.ps1` runs a health check before opening the UI.
+3. **The IPC Nexus:** The Rust backend continuously monitors service health, attempting auto-recovery if a service drops.
+
+---
+
+## 5. Manual Service Management
+
+If you need to manage services manually for debugging or enterprise configuration:
 
 ```powershell
-cd C:\code\utahbrowser
-
-# Start or install native Qdrant only
+# Re-initialize only the Qdrant service
 .\scripts\Ensure-Qdrant.ps1
 
-# Ollama + Qdrant (same as launcher)
+# Check the health of the entire intelligence stack
 .\scripts\Ensure-Services.ps1
 ```
 
 ---
 
-## Ollama
+## 6. Troubleshooting
 
-Install from [ollama.com](https://ollama.com/). Keep the app running or use:
-
-```powershell
-ollama serve
-```
-
-Models (from `config/default.toml`, auto-pulled by installer):
-
-- `nomic-embed-text` (embeddings)
-- `llama3.2` (optional verification summaries)
+| Symptom | Resolution |
+|---------|------------|
+| **"Oracle Offline"** | Open the Ollama application or run `ollama serve`. |
+| **"History Index Error"** | Check `%LOCALAPPDATA%\UtahBrowser\qdrant\qdrant.err.log`. |
+| **Connection Timeout** | Ensure port 6333 and 11434 are not blocked by system firewalls. |
 
 ---
 
-## When the UI starts services
-
-| Moment | Behavior |
-|--------|----------|
-| `Launch-UtahBrowser.ps1` | Runs `Ensure-Services.ps1` before exe |
-| App load | `transport.js` calls `ensure_services` IPC |
-| Ingest / Verify | Rust calls `ensure_qdrant_ready`; may run `Ensure-Qdrant.ps1` on Windows |
-
----
-
-## Docker fallback (optional)
-
-If native download or start fails:
-
-```powershell
-docker run -d -p 6333:6333 --name utah-qdrant --restart unless-stopped qdrant/qdrant
-```
-
-Requires Docker Desktop running.
-
-To **disable all** auto-start (including native):
-
-```powershell
-.\scripts\install.ps1 -SkipQdrantStart
-```
-
----
-
-## Common errors
-
-| Message | Fix |
-|---------|-----|
-| RedirectStandardOutput / RedirectStandardError same | Fixed in current repo — `git pull` and re-run |
-| Download failed | Check firewall/proxy for GitHub releases |
-| API not ready after start | Read `qdrant.err.log`; port 6333 may be in use |
-| Docker not installed | Not an error if native path succeeds |
-
----
-
-## Utahnetes?
-
-[Utahnetes](https://github.com/utahisnotastate/utahnetes) is a **peer-to-peer WASM swarm** for LAN demos. It does **not** store notebook embeddings and cannot replace Qdrant in Utah Browser.
-
----
-
-## See also
-
-- [Installation](../INSTALLATION.md)
-- [Build troubleshooting](BUILD_TROUBLESHOOTING.md)
-- [Technical manual](../technical/MANUAL.md)
+**Mastery Log:** Intelligence stack documentation synchronized. Sovereignty is maintained.

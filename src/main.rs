@@ -43,9 +43,12 @@ fn run_app() -> anyhow::Result<()> {
         utah_browser::paths::sovereign_data_root().display()
     ));
 
+    let py = std::env::var("UTAH_PYTHON").unwrap_or_else(|_| "python".into());
+    let py_found = std::process::Command::new(&py).arg("--version").status().is_ok();
     info!(
-        "Utah Browser V1.0-GENESIS — knowledge path: {}",
-        config.knowledge.path.display()
+        "Utah Browser V1.0-GENESIS — knowledge path: {} (Python: {})",
+        config.knowledge.path.display(),
+        if py_found { &py } else { "NOT FOUND" }
     );
 
     let recovery = diagnostics::load_recovery();
@@ -60,6 +63,12 @@ fn run_app() -> anyhow::Result<()> {
     );
 
     let state = Arc::new(AppState::new(config.clone())?);
+
+    // Initialize high-speed IPC Nexus (SOTA Phase 7)
+    let nexus = utah_browser::ipc::nexus::IpcNexus::new(9002, state.quantum.clone());
+    runtime.spawn(async move {
+        nexus.initialize_bridge().await;
+    });
 
     // Sentinel-Core: daemons start only after shell.ready + grace (never during WebView boot).
     sentinel::spawn_delayed_background_services(config, runtime.clone(), recovery);

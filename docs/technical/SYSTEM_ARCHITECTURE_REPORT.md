@@ -104,7 +104,7 @@ flowchart TB
 | `src/lib.rs` | Crate modules + `AppState` |
 | `src/engine/mod.rs` | Window, dual/single WebView, IPC dispatch, shell layout |
 | `src/truth/` | Ingest, embed, verify, Ollama/Qdrant HTTP clients |
-| `src/browser/` | Tabs, bookmarks, prefetch, Wasm extensions, vault paths |
+| `src/browser/` | Tabs, bookmarks, shield, prefetch, Wasm extensions, vault |
 | `src/binding/` | Cognitive zones, telemetry, folder picker ingest |
 | `src/ipc/messages.rs` | Typed IPC request/event enums (serde JSON) |
 | `src/diagnostics.rs` | Multi-path `browser.log`, `recovery.json`, fatal dialogs |
@@ -356,7 +356,25 @@ Uses `reqwest` + rustls (no native TLS dependency on Windows schannel for consis
 
 ---
 
-## 11. Optional subsystems
+## 11. Sovereign Secure Shield (`shield.rs`)
+
+The Shield is a high-performance network and content filtering engine integrated into the browser's navigation pipeline.
+
+**Core components:**
+- **`ShieldEngine`**: Handles domain matching, block logging (SQLite via `shield_logs.db`), and metrics calculation.
+- **Rule Matrix**: Local-first blocking rules for advertising, tracking, and high-risk adult domains.
+- **Ad-Ablation**: Geometric layout pruning (injected JS) that removes the physical space occupied by ad elements.
+- **Analytics Dashboard**: Real-time IPC telemetry fed to `index.html` for user visibility.
+
+**Operational Flow:**
+1. `Navigate` request received via IPC.
+2. `ShieldEngine::evaluate_resource_request` checks the target domain.
+3. If blocked: request is dropped, event is logged, and `PushEvent::ShieldUpdate` is sent to UI.
+4. On page load: `ad-ablation.js` performs cosmetic cleanup and reports "geometric blocks" back to the core.
+
+---
+
+## 12. Optional subsystems
 
 ### 11.1 Evolution daemon (`evolution/watcher.rs`)
 
@@ -394,7 +412,7 @@ Uses `reqwest` + rustls (no native TLS dependency on Windows schannel for consis
 
 ---
 
-## 12. IPC contract reference
+## 13. IPC contract reference
 
 ### 12.1 Requests (`cmd` snake_case)
 
@@ -426,7 +444,7 @@ Full definitions: `src/ipc/messages.rs`.
 
 ---
 
-## 13. Configuration
+## 14. Configuration
 
 **File:** `config/default.toml`  
 **Loader:** `AppConfig::load()` in `src/config.rs`
@@ -448,7 +466,7 @@ Full definitions: `src/ipc/messages.rs`.
 
 ---
 
-## 14. PowerShell Zero-Click Kernel
+## 15. PowerShell Zero-Click Kernel
 
 ### 14.1 `scripts/install.ps1` phases
 
@@ -480,7 +498,7 @@ Copies to `dist/`:
 
 ---
 
-## 15. Diagnostics & recovery
+## 16. Diagnostics & recovery
 
 | Artifact | Purpose |
 |----------|---------|
@@ -493,7 +511,7 @@ See [CRASH_ON_LAUNCH_REPORT.md](./CRASH_ON_LAUNCH_REPORT.md) for failure modes.
 
 ---
 
-## 16. Dependencies (Rust)
+## 17. Dependencies (Rust)
 
 | Crate | Use |
 |-------|-----|
@@ -514,7 +532,7 @@ See [CRASH_ON_LAUNCH_REPORT.md](./CRASH_ON_LAUNCH_REPORT.md) for failure modes.
 
 ---
 
-## 17. Security & privacy model
+## 18. Security & privacy model
 
 | Aspect | Design |
 |--------|--------|
@@ -527,7 +545,7 @@ See [CRASH_ON_LAUNCH_REPORT.md](./CRASH_ON_LAUNCH_REPORT.md) for failure modes.
 
 ---
 
-## 18. External ecosystem (related repos)
+## 19. External ecosystem (related repos)
 
 | Project | Relationship |
 |---------|--------------|
@@ -538,7 +556,7 @@ See [CRASH_ON_LAUNCH_REPORT.md](./CRASH_ON_LAUNCH_REPORT.md) for failure modes.
 
 ---
 
-## 19. Build & run commands
+## 20. Build & run commands
 
 ```powershell
 # Full install + dist
@@ -558,7 +576,7 @@ C:\code\utahbrowser\dist\Utah Browser.exe
 
 ---
 
-## 20. Known limitations & technical debt
+## 21. Known limitations & technical debt
 
 | Item | Detail |
 |------|--------|
@@ -573,7 +591,7 @@ C:\code\utahbrowser\dist\Utah Browser.exe
 
 ---
 
-## 21. Extension points (for future AI work)
+## 22. Extension points (for future AI work)
 
 1. **Single WebView + in-DOM chrome** — reduce native crash surface.
 2. **Wire `[urm]` into `AppConfig`** — control poll/enable from Rust.
@@ -584,7 +602,7 @@ C:\code\utahbrowser\dist\Utah Browser.exe
 
 ---
 
-## 22. Module dependency graph (Rust)
+## 23. Module dependency graph (Rust)
 
 ```
 main.rs

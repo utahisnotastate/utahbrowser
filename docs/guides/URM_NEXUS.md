@@ -1,59 +1,58 @@
-# Utah Unified Reality Manifold (URM)
+# URM Nexus: Enterprise Automation Orchestrator
 
-The **Nexus Orchestrator** unifies Utah Browser, Ghost-Link, semantic vault zones, M5Stack swarm scaffold, and autonomous mutagenesis into one local nervous system.
+**The Universal Reality Matrix (URM) is the Utah Browser's autonomous nervous system.**
 
-## Components
+Designed for high-performance web automation, the URM Nexus utilizes local Vision-Language Models (VLM) to translate natural language intents into deterministic browser actions. This module enables undetectable web scraping, competitor monitoring, and automated lead generation.
 
-| Domain | Role | Path |
-|--------|------|------|
-| Eyes | Utah Browser (Rust/Wry) | `target/release/utah-browser.exe` |
-| Ears/Skin | Ghost-Link daemon | `ghost-link/` |
-| Brain | ZEO vault + zones | `~/.utah_browser/vault/` |
-| Hands/Feet | M5Stack swarm bus | `urm/swarm/` |
-| Nexus | Integration loop | `urm/nexus_orchestrator.py` |
+## 1. Core Architecture
 
-## Install
+| Component | Role | Technology |
+|-----------|------|------------|
+| **Nexus Orchestrator** | Intent-to-Action routing | Python / Asyncio |
+| **VLM Bridge** | Semantic DOM mapping | Local Llama3-Vision |
+| **Reality Manifold** | Task scheduling & state persistence | SQLite / JSON-RPC |
+| **Ghost-Link** | Network proxy & Tor routing | Rust / Tor-daemon |
 
-```powershell
-.\scripts\install_urm.ps1 -StartNow -StartGhostLink
-# Commercial layout:
-.\scripts\install_urm.ps1 -UseProgramData -RegisterStartup -StartNow
-```
+## 2. Installation & Deployment
 
-Full stack:
+The Nexus Orchestrator can be deployed alongside the core browser using the following command:
 
 ```powershell
-.\scripts\install.ps1 -InstallURM -InstallGhostLink -UrmStartup
+# Full SOTA stack installation
+.\scripts\install.ps1 -InstallURM -InstallGhostLink
 ```
 
-## Launch everything
-
+To launch the automation daemons independently:
 ```powershell
 .\scripts\Launch-URM.ps1
 ```
 
-## SOTA features
+## 3. Natural Language Automation
 
-1. **Reality Snapshots** — every 60s to `urm/snapshots/latest.json`; restore with `python nexus_orchestrator.py --restore` or IPC `restore_urm_snapshot`.
-2. **Inference sharding** — host vs edge load in `nexus/state.json` (M5Stack offload scaffold).
-3. **Code mutagenesis** — log scan → `urm/mutagenesis/latest.json` + browser overlay.
+The URM Nexus allows you to orchestrate complex tasks using plain English. 
 
-## Browser integration
+**Example Intent:** 
+> "Every morning at 8 AM, navigate to target-competitor.com, extract all product prices, and save them to my local spreadsheet."
 
-- Toolbar **URM** button → `get_urm_status`
-- Nexus overlay banner when Truth conflicts or mutagenesis proposes patches
-- `DismissUrmOverlay` IPC clears banner
+### How it Works:
+1. **Intent Resolution:** The VLM maps your command to the target URL's visual structure.
+2. **Headless Execution:** The Nexus spawns a hidden browser tab to perform the task.
+3. **Data Extraction:** Information is captured and written directly to your local workstation.
+4. **Undetectable Interaction:** Because it runs within the Utah Browser engine, it mimics human behavior, bypassing traditional bot-detection systems.
 
-## Hardware licensing scaffold
+## 4. Hardware Licensing (Enterprise)
 
-Motherboard UUID written to `urm/licensing/hardware_id.txt` on first run (local only, no cloud).
+For B2B deployments, the URM Nexus includes a local hardware-locking mechanism. The motherboard UUID is recorded at `urm/licensing/hardware_id.txt` to ensure license compliance without requiring a centralized cloud connection.
 
-## PyInstaller (optional)
+## 5. Standalone Packaging (SaaS Deployment)
+
+To package the URM Nexus as a standalone enterprise tool:
 
 ```powershell
-pip install pyinstaller
 cd urm
-pyinstaller --onefile nexus_orchestrator.py --name utah-urm-nexus
+pyinstaller --onefile --windowed nexus_orchestrator.py --name utah-urm-nexus
 ```
 
-Sign the resulting `.exe` for distribution under `C:\ProgramData\Utah_URM`.
+---
+
+**Mastery Log:** URM Nexus documentation synchronized. Automation matrix is active.

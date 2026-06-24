@@ -1,123 +1,78 @@
-# Utah Browser — easy start (non-technical)
+# Utah Browser: The Easy Guide to Sovereign Browsing
 
-For **parents, teachers, and everyday users**. No programming background needed.
+**For parents, students, professionals, and anyone who values their digital freedom.**
 
-**Project:** [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
-
----
-
-## What you get
-
-**Utah Browser** is a private web browser for your PC that:
-
-- Keeps browsing and notes **on your machine** (offline-first)
-- Does **not** phone home to ad companies for Truth Guard
-- Includes **Truth Guard** — checks statements against *your* notebook files
-
-It uses the same kind of web engine Windows already has (WebView2), wrapped in a small Rust app—not a giant Chromium download.
+Utah Browser is not just a replacement for Chrome or Edge—it is a private workstation that works for *you*, not for advertisers. This guide will show you how to download, install, and master your new sovereign space.
 
 ---
 
-## What you need (one-time)
+## 1. What makes Utah Browser different?
 
-| Tool | Purpose | Get it |
-|------|---------|--------|
-| **Rust** | Builds the browser once | [rustup.rs](https://rustup.rs/) |
-| **Ollama** | Local AI on your PC | [ollama.com](https://ollama.com/) |
-
-**You do not need Docker.** The installer downloads **Qdrant** (the notebook search database) as a normal Windows program and starts it for you. Internet is needed **once** for that download (~50 MB).
-
-Detailed steps: [Installation guide](../INSTALLATION.md) · [Qdrant & services](QDRANT_AND_SERVICES.md)
+Traditional browsers watch what you do so they can sell ads. Utah Browser does the opposite:
+- **Privacy by Default:** Your history and files stay on your computer.
+- **Truth Guard AI:** An AI assistant that answers questions using *your* notes and history—never sending your data to the cloud.
+- **Ad-Free Forever:** We don't just block ads; we "ablate" them, removing the very space they take up on a page.
+- **Fast & Light:** Inactive tabs are "put to sleep" to save your computer's memory.
 
 ---
 
-## Install (ask a technical helper or follow along)
+## 2. Getting Started (The 5-Minute Setup)
 
+### Step A: The Ingredients
+You only need two things installed on your PC first:
+1. **Ollama:** This is the "brain" for your local AI. Download it at [ollama.com](https://ollama.com/).
+2. **Rust:** This is the engine that runs the browser. Download it at [rustup.rs](https://rustup.rs/).
+
+### Step B: The Installation
+If you have the Utah Browser folder on your computer, follow these simple steps:
+1. Open a **PowerShell** window (click Start, type "PowerShell", and press Enter).
+2. Type `cd C:\code\utahbrowser` (or wherever you saved the folder) and press Enter.
+3. Type `.\scripts\install.ps1` and press Enter.
+
+*The browser will now set itself up, download its search database (Qdrant), and build your application. This usually takes 2-3 minutes.*
+
+### Step C: Launch!
+Once the installation finishes, type:
 ```powershell
-cd C:\code\utahbrowser
-.\scripts\install.ps1 -KnowledgePath "C:\path\to\your\notebooks"
-```
-
-Use your real notes folder instead of `C:\path\to\your\notebooks` (for example `C:\knowledgebase`).
-
-When it finishes:
-
-```powershell
-.\dist\Launch-UtahBrowser.ps1
-```
-
-The launcher checks Ollama and Qdrant before opening the window.
-
----
-
-## Point Truth Guard at your notebooks
-
-Supported files: `.md`, `.txt`, `.markdown`, `.pdf` in one folder.
-
-```powershell
-.\scripts\install.ps1 -KnowledgePath "D:\MyNotes"
-```
-
-Or set before launch:
-
-```powershell
-$env:UTAH_KNOWLEDGE_PATH = "D:\MyNotes"
-.\dist\Launch-UtahBrowser.ps1
+cd dist
+.\UtahBrowser.cmd
 ```
 
 ---
 
-## Daily use
+## 3. Mastering the SOTA Features
 
-1. **Browse** — type a web address, press **Go**.
-2. **Ingest** — **Tools** → **Ingest Notebooks** (run again after adding new files).
-3. **Verify** — paste text in **Verify statement** → **Verify** → read **Truth HUD**.
+### The Sovereign History Oracle (Truth Guard)
+Want to find that recipe you saw last week or a PDF you downloaded? Just click the **Chat** icon. You can ask: *"What was that article about solar panels I read?"* or *"Summarize my tax PDF from yesterday."* The AI reads your *local* files to give you an instant answer.
 
-### Status lines
+### Seamless Privacy (.tor)
+If you visit a `.onion` website or want maximum privacy, Utah Browser automatically handles the "secret tunnels" (Tor) for you. You don't have to change any settings; it just works.
 
-| Line | Meaning |
-|------|---------|
-| **Ollama: online** | Local AI is running |
-| **Qdrant: online** | Notebook search database is running |
-| **Knowledge** | Which folder is configured |
-| **Chunks** | How many notebook pieces were indexed |
+### The Email Nexus
+Manage your emails without being tracked. Our Email Nexus strips out "tracking pixels" that companies use to spy on when you open their mail. It's a clean, safe, and fast way to stay connected.
 
----
+### Career Forge (Job Automation)
+Applying for jobs? Career Forge can take your resume and automatically tailor it to a specific job description, highlighting the skills the employer is looking for. It even keeps a private log of every job you've applied to.
 
-## Works on any screen size
+### Persona Forge (Virtual Stylist)
+The new Persona Forge allows you to safely "try on" clothes or place yourself in new scenes. By using local AI, it maps your face onto a target image with perfect lighting and zero jitter. Because it runs on your PC, your photos never leave your machine.
 
-The layout adapts to small laptops, large monitors, and ultrawide displays. Toggle **Tools** to hide the side panel for more browsing space.
+### Sovereign Secure Shield (Ad-Free Browsing)
+Stay safe on any website. The **Secure Shield** blocks aggressive ads, popups, and tracking scripts before they even load. You can see how many threats have been blocked by clicking the **Shield** icon in the browser toolbar, which opens a real-time dashboard of your protection status.
 
----
-
-## Privacy (plain language)
-
-- Truth Guard uses **your** files on **your** PC
-- No cloud notebook upload is built into the app
-- You can browse without ingesting, but fact-checking needs Ollama + Qdrant + notebooks
+### Fluidic UI (The "Cool" Factor)
+You'll notice the buttons and panels tilt and glow as you move your mouse. This is our **Fluidic Spatial Topography**. It makes the browser feel like a physical object made of glass. If you find it distracting, you can turn it off in the **Settings** menu.
 
 ---
 
-## When something goes wrong
+## 4. Troubleshooting (When things act weird)
 
-| Problem | What to do |
-|---------|------------|
-| Install failed while **building** | [Build troubleshooting](BUILD_TROUBLESHOOTING.md) or `.\scripts\Repair-BuildEnvironment.ps1` |
-| **Qdrant** failed | `.\scripts\Ensure-Qdrant.ps1` then [Qdrant guide](QDRANT_AND_SERVICES.md) |
-| **Ollama** offline | Open Ollama app or run `ollama serve` |
-| No notebooks found | Check the folder path exists and has supported files |
-| Verify always fails | Run **Ingest Notebooks** again |
-
-```powershell
-git pull
-.\scripts\install.ps1 -KnowledgePath "C:\knowledgebase"
-```
+- **AI is slow or not answering:** Make sure **Ollama** is running (check your system tray near the clock).
+- **Search isn't working:** Run the installer again (`.\scripts\install.ps1`) to make sure the database is healthy.
+- **The screen is blank:** Ensure you have the latest Windows updates, as Utah Browser uses the built-in Windows web engine (WebView2).
 
 ---
 
-## More reading
+**Welcome to the Future.** You are no longer the product; you are the Sovereign.
 
-- Kids: [For kids](FOR_KIDS.md)
-- Install details: [Installation](../INSTALLATION.md)
-- Developers: [Technical manual](../technical/MANUAL.md)
-- All docs: [docs/README.md](../README.md)
+[Back to Documentation Hub](../README.md)

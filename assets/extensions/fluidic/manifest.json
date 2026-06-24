@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Utah Fluidic Override",
+  "version": "1.1",
+  "description": "Applies Volumetric Spatial Topography to all domain environments.",
+  "permissions": ["activeTab", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["global-fluidic.css"],
+      "js": ["injector.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

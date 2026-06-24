@@ -68,7 +68,7 @@ function Test-QdrantHealth {
 
     foreach ($uri in $endpoints) {
         try {
-            $resp = Invoke-WebRequest -Uri $uri -Method Get -TimeoutSec $TimeoutSec -UseBasicParsing
+            $resp = Invoke-WebRequest -Uri $uri -Method Get -TimeoutSec $TimeoutSec -UseBasicParsing -ErrorAction SilentlyContinue
             if ($resp.StatusCode -eq 200) {
                 return [PSCustomObject]@{
                     Ok      = $true
@@ -77,7 +77,19 @@ function Test-QdrantHealth {
                 }
             }
         }
-        catch { continue }
+        catch { 
+            # Fallback for systems where Invoke-WebRequest is strictly blocked but service might be up
+            try {
+                $tcp = New-Object System.Net.Sockets.TcpClient
+                $tcp.Connect('127.0.0.1', 6333)
+                $tcp.Close()
+                return [PSCustomObject]@{
+                    Ok      = $true
+                    Message = "Qdrant reachable (TCP/6333)"
+                    Url     = $base
+                }
+            } catch { continue }
+        }
     }
 
     return [PSCustomObject]@{

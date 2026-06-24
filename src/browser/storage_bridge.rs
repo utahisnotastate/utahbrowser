@@ -6,9 +6,7 @@ use std::path::{Path, PathBuf};
 
 /// Root of the Utah Browser local vault (`~/.utah_browser` or platform equivalent).
 pub fn vault_root() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".utah_browser")
+    crate::paths::sovereign_data_root()
 }
 
 pub fn vault_dir(name: &str) -> PathBuf {

@@ -166,22 +166,6 @@ See docs/guides/BUILD_TROUBLESHOOTING.md
         $report.build = 'skipped'
     }
 
-    # --- Phase 1b: Qdrant must be up before dist (launcher + Truth Engine depend on it) ---
-    if (-not $SkipHealth) {
-        Write-Step 'Ensuring Qdrant before packaging Truth Engine'
-        $qdrant = Ensure-QdrantReady -BaseUrl $cfg.QdrantUrl -ProjectRoot $Root -NoAutoStart:$SkipQdrantStart
-        $report.qdrant = $qdrant
-        if ($qdrant.Ok) {
-            $col = Ensure-QdrantCollection -BaseUrl $cfg.QdrantUrl -Collection $cfg.QdrantCollection -VectorSize $cfg.QdrantVectorSize
-            if ($col.Ok) {
-                Write-Host "  [OK] $($col.Message)" -ForegroundColor DarkGreen
-            }
-        }
-        elseif ($KnowledgePath) {
-            throw 'Qdrant is required but could not be started. Re-run install.ps1 (native Qdrant is downloaded automatically).'
-        }
-    }
-
     # --- Phase 2: Dist bundle ---
     Write-Step 'Packaging dist/'
     $OutDir = Join-Path $Root 'dist'

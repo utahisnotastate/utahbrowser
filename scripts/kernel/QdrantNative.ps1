@@ -151,9 +151,16 @@ function Start-QdrantNative {
             $proc.Id | Set-Content $paths.PidFile -Encoding ASCII
         }
         catch {
+            $err = $_.Exception.Message
+            if ($err -match "Application Control policy" -or $err -match "blocked by") {
+                return [PSCustomObject]@{
+                    Ok      = $false
+                    Message = "Native Qdrant BLOCKED by Windows Smart App Control or Policy. You may need to right-click qdrant.exe and select 'Unblock' or add an exclusion. Path: $($paths.ExePath)"
+                }
+            }
             return [PSCustomObject]@{
                 Ok      = $false
-                Message = "Failed to start native Qdrant: $($_.Exception.Message)"
+                Message = "Failed to start native Qdrant: $err"
             }
         }
     }

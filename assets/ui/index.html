@@ -3,24 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="color-scheme" content="light" />
   <title>Utah Browser</title>
   <link rel="stylesheet" href="utah.css" />
   <link rel="stylesheet" href="mockup.css" />
   <link rel="stylesheet" href="fluidic.css" />
+  <link rel="stylesheet" href="persona.css" />
   <link rel="stylesheet" href="settings_console.css" />
+  <link rel="stylesheet" href="quantum.css" />
 </head>
 <body class="utah-app utah-mode-web ghost-chrome">
   <input type="radio" name="utah-view" id="view-dashboard" class="utah-view-input" />
   <input type="radio" name="utah-view" id="view-web" class="utah-view-input" checked />
   <input type="radio" name="utah-view" id="view-truth" class="utah-view-input" />
   <input type="radio" name="utah-view" id="view-merge" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-chat" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-email" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-career" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-persona" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-quantum" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-settings" class="utah-view-input" />
+  <input type="radio" name="utah-view" id="view-shield" class="utah-view-input" />
   <input type="radio" name="utah-view" id="view-welcome" class="utah-view-input" />
   <input type="checkbox" id="spyglass-open" class="utah-sr-only" />
   <input type="checkbox" id="sidebar-drawer" class="utah-sr-only" />
 
   <!-- Native chrome strip (visible when shell mode = web; clipped to top bar height) -->
-  <header class="utah-browser-chrome" role="banner">
+  <header class="utah-chrome" role="banner">
     <button type="button" class="chrome-menu-btn" id="chrome-menu-btn" title="Menu" aria-label="Menu">☰</button>
     <div class="chrome-brand">
       <span class="brand-mark">UT</span>
@@ -50,6 +59,7 @@
   </header>
 
   <div class="utah-bg-glow" aria-hidden="true"></div>
+  <div class="utah-notifications" id="utah-notifications"></div>
 
   <div class="utah-shell-app fluidic-container">
     <label for="sidebar-drawer" class="sidebar-scrim"></label>
@@ -65,6 +75,13 @@
         <label for="view-dashboard" class="nav-item"><span class="nav-icon">◈</span><span>Dashboard</span></label>
         <label for="view-web" class="nav-item"><span class="nav-icon">◎</span><span>Web</span></label>
         <label for="view-truth" class="nav-item"><span class="nav-icon">⛨</span><span>Truth Guard</span></label>
+        <label for="view-chat" class="nav-item"><span class="nav-icon">💬</span><span>History Oracle</span></label>
+        <label for="view-email" class="nav-item"><span class="nav-icon">✉</span><span>Email Nexus</span></label>
+        <label for="view-career" class="nav-item"><span class="nav-icon">⚒</span><span>Career Forge</span></label>
+        <label for="view-persona" class="nav-item"><span class="nav-icon">👤</span><span>Persona Forge</span></label>
+        <label for="view-quantum" class="nav-item"><span class="nav-icon">⚛</span><span>Quantum Nexus</span></label>
+        <label for="view-settings" class="nav-item"><span class="nav-icon">⚙</span><span>Settings Nexus</span></label>
+        <label for="view-shield" class="nav-item"><span class="nav-icon">⛨</span><span>Sovereign Shield</span></label>
         <label for="view-merge" class="nav-item"><span class="nav-icon">◇</span><span>Tile Merge</span></label>
         <label for="view-welcome" class="nav-item"><span class="nav-icon">★</span><span>Setup</span></label>
         <a href="#settings-console" class="nav-item nav-link"><span class="nav-icon">⚙</span><span>Calibrate</span></a>
@@ -82,49 +99,91 @@
       <main class="utah-stage">
         <section class="panel-view panel-dashboard" aria-label="Dashboard">
           <div class="dash-grid">
-            <article class="glass-card fluid-tile card-truth">
-              <header><h2>Truth Guard</h2></header>
-              <p class="claim-text" id="dash-claim">Verify claims against your local corpus.</p>
-              <div class="verdict-row" id="dash-verdict"><span class="verdict-badge">—</span></div>
-              <button type="button" class="chip-btn" data-goto="truth">Investigate →</button>
+            <article class="glass-card fluid-tile fluid-card card-truth">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>Truth Guard</h2></header>
+                <p class="claim-text" id="dash-claim">Verify claims against your local corpus.</p>
+                <div class="verdict-row" id="dash-verdict"><span class="verdict-badge">—</span></div>
+                <button type="button" class="chip-btn" data-goto="truth">Investigate →</button>
+              </div>
             </article>
-            <article class="glass-card fluid-tile card-notes">
-              <header><h2>Bookmarks</h2></header>
-              <form id="bookmark-search-form" class="mini-search">
-                <input id="bookmark-query" type="search" placeholder="Search intentions…" autocomplete="off" />
-              </form>
-              <div id="bookmark-bar" class="note-list"></div>
+            <article class="glass-card fluid-tile fluid-card card-notes">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>Bookmarks</h2></header>
+                <form id="bookmark-search-form" class="mini-search">
+                  <input id="bookmark-query" type="search" placeholder="Search intentions…" autocomplete="off" />
+                </form>
+                <div id="bookmark-bar" class="note-list"></div>
+              </div>
             </article>
-            <article class="glass-card fluid-tile card-corpus">
-              <header><h2>Local Corpus</h2></header>
-              <ul class="corpus-list" id="corpus-list">
-                <li><span>Path</span><strong id="st-knowledge">—</strong></li>
-                <li><span>Chunks</span><strong id="st-chunks">—</strong></li>
-                <li><span>Ollama</span><strong id="st-ollama">—</strong></li>
-                <li><span>Qdrant</span><strong id="st-qdrant">—</strong></li>
-              </ul>
-              <button type="button" class="chip-btn" data-utah-cmd="ingest_notebooks">Ingest</button>
+            <article class="glass-card fluid-tile fluid-card card-shield">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>Secure Shield</h2></header>
+                <p>Threats prevented: <span id="dash-shield-count">0</span></p>
+                <div class="shield-mini-status"><span class="dot dot-ok"></span> Protected</div>
+                <button type="button" class="chip-btn" data-goto="shield">View Shield →</button>
+              </div>
             </article>
-            <article class="glass-card fluid-tile card-graph">
-              <header><h2>Semantic Map</h2></header>
-              <div id="spatial-map" class="graph-canvas"></div>
+            <article class="glass-card fluid-tile fluid-card card-corpus">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>Local Corpus</h2></header>
+                <ul class="corpus-list" id="corpus-list">
+                  <li><span>Path</span><strong id="st-knowledge">—</strong></li>
+                  <li><span>Chunks</span><strong id="st-chunks">—</strong></li>
+                  <li><span>Ollama</span><strong id="st-ollama">—</strong></li>
+                  <li><span>Qdrant</span><strong id="st-qdrant">—</strong></li>
+                </ul>
+                <button type="button" class="chip-btn" data-utah-cmd="ingest_notebooks">Ingest</button>
+              </div>
             </article>
-            <article class="glass-card fluid-tile card-system">
-              <header><h2>System</h2></header>
-              <ul class="sys-checklist" id="sys-checklist">
-                <li class="ok">No telemetry</li>
-                <li id="sys-ollama">Ollama — …</li>
-                <li id="sys-qdrant">Qdrant — …</li>
-              </ul>
-              <button type="button" class="chip-btn" data-goto="web">Browse the web →</button>
+            <article class="glass-card fluid-tile fluid-card card-graph">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>Semantic Map</h2></header>
+                <div id="spatial-map" class="graph-canvas"></div>
+              </div>
             </article>
-            <article class="glass-card fluid-tile card-launch">
-              <header><h2>Quick Launch</h2></header>
-              <div class="launch-grid">
-                <button type="button" class="launch-tile" data-goto="web">Web</button>
-                <button type="button" class="launch-tile" data-goto="truth">Truth</button>
-                <button type="button" class="launch-tile" data-goto="merge">Merge</button>
-                <button type="button" class="launch-tile" data-goto="welcome">Setup</button>
+            <article class="glass-card fluid-tile fluid-card card-chat">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>History Oracle</h2></header>
+                <div class="chat-container">
+                  <div class="chat-messages" id="dash-chat-messages">
+                    <p class="utah-muted">Private LLM active. Ask about your history or files.</p>
+                  </div>
+                  <form id="dash-chat-form" class="mini-search">
+                    <input id="dash-chat-query" type="text" placeholder="Ask your history…" autocomplete="off" />
+                  </form>
+                </div>
+              </div>
+            </article>
+            <article class="glass-card fluid-tile fluid-card card-system">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>System</h2></header>
+                <ul class="sys-checklist" id="sys-checklist">
+                  <li class="ok">No telemetry</li>
+                  <li id="sys-ollama">Ollama — …</li>
+                  <li id="sys-qdrant">Qdrant — …</li>
+                </ul>
+                <button type="button" class="chip-btn" data-goto="web">Browse the web →</button>
+              </div>
+            </article>
+            <article class="glass-card fluid-tile fluid-card card-launch">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header><h2>Quick Launch</h2></header>
+                <div class="launch-grid">
+                  <button type="button" class="launch-tile" data-goto="web">Web</button>
+                  <button type="button" class="launch-tile" data-goto="truth">Truth</button>
+                  <button type="button" class="launch-tile" data-goto="persona">Persona</button>
+                  <button type="button" class="launch-tile" data-goto="merge">Merge</button>
+                  <button type="button" class="launch-tile" data-goto="welcome">Setup</button>
+                </div>
               </div>
             </article>
           </div>
@@ -148,13 +207,221 @@
                 <g class="graph-nodes"></g>
               </svg>
             </article>
-            <article class="glass-card fluid-tile truth-verify-card truth-float-tile">
-              <h3>Verify claim</h3>
-              <form class="utah-verify-form" id="verify-form">
-                <textarea id="verify-text" rows="4" placeholder="Paste claim or excerpt…"></textarea>
-                <button type="submit" class="btn-gold">Verify</button>
+            <article class="glass-card fluid-tile fluid-card truth-verify-card truth-float-tile">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <h3>Verify claim</h3>
+                <form class="utah-verify-form" id="verify-form">
+                  <textarea id="verify-text" rows="4" placeholder="Paste claim or excerpt…"></textarea>
+                  <button type="submit" class="btn-gold">Verify</button>
+                </form>
+                <div id="truth-result" class="utah-truth-result utah-muted">Awaiting verification…</div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-chat" aria-label="History Oracle">
+          <header class="panel-hero">
+            <h1>Sovereign History Oracle</h1>
+            <p class="hero-sub">Interacting with your private digital footprint</p>
+          </header>
+          <div class="chat-panel-layout">
+            <article class="glass-card chat-main-card">
+              <div class="chat-history" id="chat-history-list">
+                <div class="chat-msg chat-msg-bot">
+                  Greetings, Chief. I have analyzed your local corpus. How can I assist you today?
+                </div>
+              </div>
+              <form class="chat-input-row" id="panel-chat-form">
+                <input type="text" id="panel-chat-input" placeholder="Query history or files…" autocomplete="off" />
+                <button type="submit" class="btn-gold">Ask</button>
               </form>
-              <div id="truth-result" class="utah-truth-result utah-muted">Awaiting verification…</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-email" aria-label="Email Nexus">
+          <header class="panel-hero">
+            <h1>Sovereign Email Nexus</h1>
+            <p class="hero-sub">Sanitized, tracker-free communication</p>
+          </header>
+          <div class="nexus-layout">
+            <article class="glass-card fluid-card email-list-card">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <header class="card-header">
+                  <h2>Inbox</h2>
+                  <button type="button" class="btn-refresh" id="email-refresh-btn">↻</button>
+                </header>
+                <div class="email-list" id="email-list-container">
+                  <p class="utah-muted">Connecting to Sovereign Email Engine...</p>
+                </div>
+              </div>
+            </article>
+            <article class="glass-card email-view-card" id="email-detail-view">
+              <div class="empty-state">Select an email to view content</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-career" aria-label="Career Forge">
+          <header class="panel-hero">
+            <h1>Agentic Career Forge</h1>
+            <p class="hero-sub">Automated resume tailoring and application tracking</p>
+          </header>
+          <div class="forge-layout">
+            <article class="glass-card fluid-card forge-tool-card">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <h3>Resume Refactorer</h3>
+                <div class="forge-form">
+                  <label>Job Description</label>
+                  <textarea id="forge-jd-input" rows="6" placeholder="Paste target job description..."></textarea>
+                  <button type="button" class="btn-gold" id="forge-refactor-btn">Refactor Resume</button>
+                </div>
+              </div>
+            </article>
+            <article class="glass-card forge-history-card">
+              <h3>Application Tracker</h3>
+              <div class="history-list" id="career-history-list">
+                <p class="utah-muted">No applications logged in the Sovereign Vault.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-persona" aria-label="Persona Forge">
+          <header class="panel-hero">
+            <h1>Identity-Preserving Persona Forge</h1>
+            <p class="hero-sub">SOTA VTON and Latent Persona Mapping</p>
+          </header>
+          <div class="persona-layout">
+            <article class="glass-card fluid-card persona-tool-card">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <h3>Persona Mapper</h3>
+                <div class="persona-form">
+                  <div class="input-group">
+                    <label>Target Image (The Outfit/Scene)</label>
+                    <input type="text" id="persona-target-input" placeholder="Path to target image..." />
+                  </div>
+                  <div class="input-group">
+                    <label>Source Face (Your Identity)</label>
+                    <input type="text" id="persona-source-input" placeholder="Path to your face image..." />
+                  </div>
+                  <button type="button" class="btn-gold" id="persona-execute-btn">Execute Latent Swap</button>
+                </div>
+              </div>
+            </article>
+            <article class="glass-card persona-preview-card">
+              <h3>Result Preview</h3>
+              <div id="persona-result-display" class="persona-preview-area">
+                <p class="utah-muted">Awaiting SOTA re-rendering...</p>
+              </div>
+              <div id="persona-status-log" class="persona-log"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-quantum" aria-label="Quantum Nexus">
+          <header class="panel-hero">
+            <h1>Quantum Oracle Nexus</h1>
+            <p class="hero-sub">Logic collapse and reality stabilization (UTAH-OMEGA-23)</p>
+          </header>
+          <div class="quantum-layout">
+            <article class="glass-card fluid-card quantum-oracle-card">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <h3>Oracle Query</h3>
+                <form class="quantum-form" id="quantum-form">
+                  <input type="text" id="quantum-query-input" placeholder="Enter problem key for logic collapse..." autocomplete="off" />
+                  <button type="submit" class="btn-gold">Collapse Wave</button>
+                </form>
+                <div id="quantum-result" class="quantum-result utah-muted">Awaiting resonance...</div>
+              </div>
+            </article>
+            <article class="glass-card quantum-state-card">
+              <h3>Quantum State</h3>
+              <ul class="quantum-stats" id="quantum-stats">
+                <li><span>Entropy</span><strong id="qs-entropy">—</strong></li>
+                <li><span>Timeline</span><strong id="qs-timeline">—</strong></li>
+                <li><span>Anchor</span><strong id="qs-anchor">—</strong></li>
+              </ul>
+              <button type="button" class="chip-btn" id="quantum-refresh-btn">Sync Anchor</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel-view panel-shield" aria-label="Shield">
+          <div class="shield-container">
+            <header class="shield-header">
+              <h1>Sovereign Secure Shield</h1>
+              <div class="shield-status">
+                <span class="status-icon">⛨</span>
+                <span id="shield-status-text">Active Protection</span>
+              </div>
+            </header>
+            
+            <div class="shield-grid">
+              <div class="glass-card shield-metric-card">
+                <h3>Total Threats Blocked</h3>
+                <div class="metric-value" id="shield-total-blocked">0</div>
+              </div>
+              
+              <div class="glass-card shield-breakdown-card">
+                <h3>Category Breakdown</h3>
+                <div id="shield-category-list" class="metric-list"></div>
+              </div>
+            </div>
+            
+            <div class="glass-card shield-logs-card">
+              <h3>Recent Shield Events</h3>
+              <div class="shield-logs-table-wrap">
+                <table id="shield-logs-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Category</th>
+                      <th>Resource</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-view panel-settings" aria-label="Settings Nexus">
+          <header class="panel-hero">
+            <h1>Settings Nexus</h1>
+            <p class="hero-sub">Calibrate your reality and system parameters</p>
+          </header>
+          <div class="settings-layout">
+            <article class="glass-card fluid-card settings-card">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <h3 class="card-title">Fluidic Reality</h3>
+                <p class="card-text">Apply Fluidic Spatial Topography to all external websites.</p>
+                <div class="toggle-container">
+                  <label class="switch">
+                    <input type="checkbox" id="fluidic-toggle">
+                    <span class="slider"></span>
+                  </label>
+                  <span id="toggle-status-text">Disabled</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="glass-card fluid-card settings-card">
+              <div class="card-glow"></div>
+              <div class="card-content">
+                <h3 class="card-title">Truth Guard</h3>
+                <p class="card-text">Configure local indexing and verification zones.</p>
+                <button type="button" class="btn-gold" data-utah-cmd="get_calibration_console">Open Console</button>
+              </div>
             </article>
           </div>
         </section>

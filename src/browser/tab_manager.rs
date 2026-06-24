@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabState {
@@ -14,6 +15,8 @@ pub struct TabState {
     pub scroll_pos: (f32, f32),
     /// Reserved for future virtual-DOM snapshot capture from the content WebView.
     pub dom_snapshot: Vec<u8>,
+    #[serde(skip, default = "Instant::now")]
+    pub last_accessed: Instant,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -29,6 +32,7 @@ pub struct TabInfo {
 pub struct TabManager {
     active: HashMap<u32, TabState>,
     suspended: HashMap<u32, PathBuf>,
+    metadata: HashMap<u32, (String, String)>,
     order: Vec<u32>,
     active_id: u32,
     next_id: u32,
@@ -42,6 +46,7 @@ impl TabManager {
         let mut mgr = Self {
             active: HashMap::new(),
             suspended: HashMap::new(),
+            metadata: HashMap::new(),
             order: Vec::new(),
             active_id: 0,
             next_id: 1,
@@ -60,15 +65,18 @@ impl TabManager {
         let url = url.unwrap_or_else(|| self.home_url.clone());
         let id = self.next_id;
         self.next_id += 1;
+        let title = title_from_url(&url);
         self.active.insert(
             id,
             TabState {
                 url: url.clone(),
-                title: title_from_url(&url),
+                title: title.clone(),
                 scroll_pos: (0.0, 0.0),
                 dom_snapshot: Vec::new(),
+                last_accessed: Instant::now(),
             },
         );
+        self.metadata.insert(id, (title, url));
         self.order.push(id);
         self.active_id = id;
         id
@@ -78,6 +86,7 @@ impl TabManager {
         if self.order.len() <= 1 {
             return Ok(false);
         }
+        self.metadata.remove(&id);
         if self.active.remove(&id).is_some() {
             let _ = fs::remove_file(storage_bridge::tab_cache_path(id));
         } else if self.suspended.remove(&id).is_some() {
@@ -104,6 +113,9 @@ impl TabManager {
         }
         if self.suspended.contains_key(&id) {
             self.resume_tab(id)?;
+        }
+        if let Some(state) = self.active.get_mut(&id) {
+            state.last_accessed = Instant::now();
         }
         self.active_id = id;
         Ok(self.active_url())
@@ -136,7 +148,8 @@ impl TabManager {
             }
         };
         let bytes = fs::read(&path).with_context(|| format!("read tab cache {}", path.display()))?;
-        let state: TabState = bincode::deserialize(&bytes).context("deserialize tab state")?;
+        let mut state: TabState = bincode::deserialize(&bytes).context("deserialize tab state")?;
+        state.last_accessed = Instant::now();
         self.active.insert(tab_id, state);
         if !self.order.contains(&tab_id) {
             self.order.push(tab_id);
@@ -163,9 +176,18 @@ impl TabManager {
     }
 
     pub fn active_title(&self) -> Option<String> {
-        self.active
-            .get(&self.active_id)
-            .map(|t| t.title.clone())
+        self.get_title(self.active_id)
+    }
+
+    pub fn get_title(&self, id: u32) -> Option<String> {
+        self.metadata.get(&id).map(|(t, _)| t.clone())
+    }
+
+    pub fn get_title_for_url(&self, url: &str) -> Option<String> {
+        self.metadata
+            .values()
+            .find(|(_, u)| u == url)
+            .map(|(t, _)| t.clone())
     }
 
     pub fn navigate_active(&mut self, url: String) -> String {
@@ -175,6 +197,7 @@ impl TabManager {
             if state.title.is_empty() || state.title == prev {
                 state.title = title_from_url(&url);
             }
+            self.metadata.insert(self.active_id, (state.title.clone(), state.url.clone()));
         }
         url
     }
@@ -183,6 +206,7 @@ impl TabManager {
         if let Some(state) = self.active.get_mut(&self.active_id) {
             if !title.trim().is_empty() {
                 state.title = title;
+                self.metadata.insert(self.active_id, (state.title.clone(), state.url.clone()));
             }
         }
     }
@@ -194,7 +218,30 @@ impl TabManager {
             if state.title.is_empty() || state.title == prev {
                 state.title = title_from_url(&url);
             }
+            state.last_accessed = Instant::now();
+            self.metadata.insert(self.active_id, (state.title.clone(), state.url.clone()));
         }
+    }
+
+    pub fn mark_active(&mut self) {
+        if let Some(state) = self.active.get_mut(&self.active_id) {
+            state.last_accessed = Instant::now();
+        }
+    }
+
+    pub fn get_inactive_tabs(&self, timeout_secs: u64) -> Vec<u32> {
+        let now = Instant::now();
+        self.active
+            .iter()
+            .filter(|(&id, state)| {
+                id != self.active_id && now.duration_since(state.last_accessed).as_secs() > timeout_secs
+            })
+            .map(|(&id, _)| id)
+            .collect()
+    }
+
+    pub fn get_active_mut(&mut self, id: u32) -> Option<&mut TabState> {
+        self.active.get_mut(&id)
     }
 
     pub fn set_scroll(&mut self, tab_id: u32, x: f32, y: f32) {
@@ -213,28 +260,29 @@ impl TabManager {
     }
 
     fn tab_info(&self, id: u32) -> Option<TabInfo> {
-        if let Some(state) = self.active.get(&id) {
-            return Some(TabInfo {
-                id,
-                title: state.title.clone(),
-                url: state.url.clone(),
-                suspended: false,
-            });
-        }
-        if self.suspended.contains_key(&id) {
-            let path = storage_bridge::tab_cache_path(id);
-            if let Ok(bytes) = fs::read(path) {
-                if let Ok(state) = bincode::deserialize::<TabState>(&bytes) {
-                    return Some(TabInfo {
-                        id,
-                        title: state.title,
-                        url: state.url,
-                        suspended: true,
-                    });
+        let (title, url) = self.metadata.get(&id).cloned().or_else(|| {
+            // Fallback: try to recover from active/suspended if metadata is missing (should not happen)
+            if let Some(state) = self.active.get(&id) {
+                Some((state.title.clone(), state.url.clone()))
+            } else if self.suspended.contains_key(&id) {
+                let path = storage_bridge::tab_cache_path(id);
+                if let Ok(bytes) = fs::read(path) {
+                    if let Ok(state) = bincode::deserialize::<TabState>(&bytes) {
+                        return Some((state.title, state.url));
+                    }
                 }
+                None
+            } else {
+                None
             }
-        }
-        None
+        })?;
+
+        Some(TabInfo {
+            id,
+            title,
+            url,
+            suspended: self.suspended.contains_key(&id),
+        })
     }
 }
 

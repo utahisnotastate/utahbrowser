@@ -18,6 +18,10 @@ pub struct AppConfig {
     pub browser: BrowserConfig,
     #[serde(default)]
     pub ghost_link: GhostLinkConfig,
+    #[serde(default)]
+    pub urm: UrmConfig,
+    #[serde(default)]
+    pub quantum: QuantumConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -109,11 +113,45 @@ pub struct GhostLinkConfig {
 impl Default for GhostLinkConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             entropy_threshold: 0.12,
             frame_interval_ms: 500,
             buffer_seconds: 5.0,
             vision_model: "llava".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UrmConfig {
+    pub enabled: bool,
+    pub poll_hz: f32,
+    pub snapshot_interval_sec: f32,
+}
+
+impl Default for UrmConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            poll_hz: 10.0,
+            snapshot_interval_sec: 60.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct QuantumConfig {
+    pub enabled: bool,
+    pub engine_port: u16,
+    pub vibe_path: PathBuf,
+}
+
+impl Default for QuantumConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            engine_port: 8080,
+            vibe_path: "vibes".into(),
         }
     }
 }

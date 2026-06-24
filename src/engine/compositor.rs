@@ -55,6 +55,7 @@ pub fn boot(
     assets_root: &PathBuf,
     init_script: &str,
     prefetch_buffer: &Arc<Mutex<PrefetchBuffer>>,
+    asset_cache: &super::AssetCache,
     proxy_nav: &EventLoopProxy<UserEvent>,
     proxy_ipc: &EventLoopProxy<UserEvent>,
     proxy_page: &EventLoopProxy<UserEvent>,
@@ -72,7 +73,8 @@ pub fn boot(
             let proxy = proxy_nav.clone();
             let assets = assets.clone();
             let buffer = buffer.clone();
-            move |_id, request| protocol_response(&assets, &buffer, &request, &proxy).into()
+            let cache = asset_cache.clone();
+            move |_id, request| protocol_response(&assets, &buffer, &cache, &request, &proxy).into()
         })
         .with_ipc_handler({
             let proxy = proxy_ipc.clone();

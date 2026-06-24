@@ -113,3 +113,35 @@ pub fn scripts_dir() -> PathBuf {
 pub fn resolve_under_install(rel: impl AsRef<Path>) -> PathBuf {
     install_root().join(rel.as_ref())
 }
+
+/// SOTA Absolute Void-State: Cryptographic zero-fill of a directory before deletion.
+pub fn zero_fill_dir(path: &Path) -> std::io::Result<()> {
+    use std::io::Write;
+    if !path.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(path)? {
+        let entry = entry?;
+        let p = entry.path();
+        if p.is_file() {
+            if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&p) {
+                if let Ok(meta) = std::fs::metadata(&p) {
+                    let len = meta.len();
+                    let zeroes = vec![0u8; 8192];
+                    let mut remaining = len;
+                    while remaining > 0 {
+                        let to_write = remaining.min(8192) as usize;
+                        let _ = f.write_all(&zeroes[..to_write]);
+                        remaining -= to_write as u64;
+                    }
+                    let _ = f.flush();
+                }
+            }
+            let _ = std::fs::remove_file(p);
+        } else if p.is_dir() {
+            let _ = zero_fill_dir(&p);
+        }
+    }
+    let _ = std::fs::remove_dir(path);
+    Ok(())
+}

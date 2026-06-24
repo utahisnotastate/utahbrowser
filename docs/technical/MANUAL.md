@@ -9,12 +9,13 @@
 
 Native desktop shell (Rust + [Wry](https://github.com/tauri-apps/wry)) with:
 
-- **Unified compositor** — one WebView2 (`browser_frame.html` + content iframe); legacy dual via `UTAH_LEGACY_DUAL=1`
-- Custom protocol `utah://localhost` for shell assets and prefetch buffer routes
-- JSON IPC between WebView transport layer and Tokio backend
-- **Truth Engine:** Ollama embeddings + Qdrant vector search + optional LLM summary
-- Utah.css UI (checkbox / `:has()` state); `transport.js` is IPC-only
-- Background: `cpal` audio scaffold, `notify` evolution watcher
+- **Unified compositor** — one WebView2 (`browser_frame.html` + content iframe).
+- **Fluidic UI:** Volumetric 3D spatial topography (CSS + sensory-theme.js).
+- **IPC Nexus:** High-speed WebSocket/JSON-RPC bridge in Rust (`nexus.rs`) for sub-millisecond core-to-shell latency.
+- **Aggressive State Paging:** Local disk serialization for inactive tabs (Rust `tab_manager.rs`).
+- **Sovereign Truth Engine:** Local RAG (Ollama + Qdrant) for private history and file indexing.
+- **WASM Forge:** Just-In-Time extension compiler utilizing AI-generated logic.
+- **Tor Integration:** Native onion routing detection and automatic proxying.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -118,23 +119,31 @@ Config pin: `UtahQdrantVersion` in `QdrantNative.ps1` (e.g. `v1.13.2`).
 ```
 src/
   main.rs
-  lib.rs / AppState
-  config.rs
-  engine/mod.rs       # Compositor, UserEvent IPC loop
-  engine/compositor.rs
-  ipc/messages.rs
+  lib.rs
+  browser/
+    mod.rs
+    tab_manager.rs    # State paging & lifecycle
+    extensions.rs     # WASM host & extension logic
+    semantic_bookmarks.rs
+  ipc/
+    mod.rs
+    nexus.rs          # WebSocket bridge
+    messages.rs       # Shared JSON contract
+  engine/
+    mod.rs            # Event loop & IPC router
+    compositor.rs     # Frame management
   truth/
     mod.rs
     ingest.rs
     ollama.rs
-    qdrant.rs
+    qdrant.rs         # Vector DB bridge
     verify.rs
-    services.rs       # ensure_qdrant_ready, spawn Ensure-Qdrant.ps1
-  audio/capture.rs
-  evolution/watcher.rs
-assets/ui/
-scripts/
-docs/
+    services.rs
+  ghost_link/         # Tor proxy & sensory daemon
+flux/                 # Python Email & Career Nexus
+urm/                  # Python VLM Orchestrator
+assets/ui/            # Fluidic UI (CSS/JS)
+scripts/              # Deployment & Kernel scripts
 ```
 
 ---

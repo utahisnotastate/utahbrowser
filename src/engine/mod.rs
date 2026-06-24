@@ -12,9 +12,9 @@ use crate::browser::tab_manager::TabManager;
 use crate::ghost_link::GhostLinkBridge;
 use crate::binding::{pick_and_bind, telemetry, ZoneHealth};
 use crate::ipc::{
-    event_json, BookmarkPayload, ExtensionPayload, GhostEventPayload, IpcEvent, IpcRequest,
-    MemoryAnchorPayload, SpatialBookmarkPayload, TabPayload, TelemetryPayload,
-    UrmMutagenesisPayload, UrmOverlayPayload, VerifyResultPayload, ZonePayload,
+    event_json, BookmarkPayload, CareerPayload, EmailPayload, ExtensionPayload, GhostEventPayload,
+    IpcEvent, IpcRequest, MemoryAnchorPayload, SpatialBookmarkPayload, TabPayload,
+    TelemetryPayload, UrmMutagenesisPayload, UrmOverlayPayload, ZonePayload,
 };
 use crate::browser::MemoryAnchorStore;
 use crate::urm::UrmBridge;
@@ -23,8 +23,9 @@ use crate::AppState;
 use anyhow::{Context, Result};
 use http::header::CONTENT_TYPE;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tao::{
     dpi::LogicalPosition,
     dpi::LogicalSize,
@@ -68,6 +69,10 @@ pub enum UserEvent {
     PrefetchWarm(String),
     /// Prefetch worker finished — push `PrefetchBuffered` to the shell UI.
     PrefetchDone { url: String, buffer_id: String },
+    /// Aggressive State Paging check.
+    TabInactivityCheck,
+    /// Thread-safe event push from background tasks.
+    PushEvent(IpcEvent),
 }
 
 type ShellViews = compositor::UnifiedShell;
@@ -98,6 +103,8 @@ pub(crate) fn window_logical_size(window: &Window) -> (f64, f64) {
     )
 }
 
+type AssetCache = Arc<RwLock<HashMap<String, (String, Vec<u8>)>>>;
+
 struct BrowserUi {
     tabs: TabManager,
     bookmarks: SemanticBookmarkStore,
@@ -107,8 +114,13 @@ struct BrowserUi {
     prefetch_buffer: Arc<Mutex<PrefetchBuffer>>,
     prefetch_http: Arc<reqwest::Client>,
     ghost: GhostLinkBridge,
+    p2p_search: crate::browser::p2p_search::SearchNode,
+    shield: crate::browser::shield::ShieldEngine,
     urm: UrmBridge,
     shell_mode: ShellMode,
+    last_theme: Option<crate::ghost_link::SensoryTheme>,
+    asset_cache: AssetCache,
+    last_shield_update: std::time::Instant,
 }
 
 impl BrowserUi {
@@ -136,8 +148,13 @@ impl BrowserUi {
                     .unwrap_or_else(|_| reqwest::Client::new()),
             ),
             ghost: GhostLinkBridge::new(),
+            p2p_search: crate::browser::p2p_search::SearchNode::default(),
+            shield: crate::browser::shield::ShieldEngine::new()?,
             urm: UrmBridge::default(),
             shell_mode: ShellMode::Web,
+            last_theme: None,
+            asset_cache: Arc::new(RwLock::new(HashMap::new())),
+            last_shield_update: std::time::Instant::now() - std::time::Duration::from_secs(10),
         })
     }
 
@@ -173,10 +190,10 @@ pub fn run(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) {
 
 fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Result<()> {
     let recovery = diagnostics::load_recovery();
-    let mut safe_mode = recovery.should_use_safe_mode();
+    let safe_mode = recovery.should_use_safe_mode();
     if std::env::var("UTAH_DEMO_MODE").ok().as_deref() == Some("1") {
-        safe_mode = true;
-        diagnostics::log_step("demo mode: unified compositor (UTAH_DEMO_MODE=1)");
+        // safe_mode = true; // Disabled: Unified compositor (iframe) blocks X-Frame-Options: SAMEORIGIN sites like Google
+        diagnostics::log_step("demo mode: dual compositor active (UTAH_DEMO_MODE=1)");
     }
     if safe_mode {
         diagnostics::log_step("recovery safe mode flag set (unified compositor, no dual webview)");
@@ -206,23 +223,36 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     let proxy_title = proxy.clone();
     let init_script = compositor::frame_init_script(&home_url);
 
+    let proxy_inactivity = proxy.clone();
+    runtime.spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            let _ = proxy_inactivity.send_event(UserEvent::TabInactivityCheck);
+        }
+    });
+
     let initial_mode = ShellMode::Web;
     if let Ok(mut b) = browser.lock() {
         b.shell_mode = initial_mode;
     }
 
-    let prefetch_buffer = {
+    let (prefetch_buffer, asset_cache) = {
         let b = browser.lock().map_err(|_| anyhow::anyhow!("browser lock poisoned"))?;
-        b.prefetch_buffer.clone()
+        (b.prefetch_buffer.clone(), b.asset_cache.clone())
     };
 
-    let shell = if compositor::legacy_dual_enabled() {
-        diagnostics::log_step("legacy dual webview (UTAH_LEGACY_DUAL=1)");
+    let shell = if compositor::legacy_dual_enabled() || !safe_mode {
+        if compositor::legacy_dual_enabled() {
+            diagnostics::log_step("legacy dual webview (UTAH_LEGACY_DUAL=1)");
+        } else {
+            diagnostics::log_step("dual webview compositor active (default)");
+        }
         boot_legacy_dual(
             &window,
             &assets_root,
             &chrome_init_script(&home_url),
             &prefetch_buffer,
+            &asset_cache,
             &proxy_nav,
             &proxy_ipc,
             &proxy_page,
@@ -235,6 +265,7 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
             &assets_root,
             &init_script,
             &prefetch_buffer,
+            &asset_cache,
             &proxy_nav,
             &proxy_ipc,
             &proxy_page,
@@ -251,10 +282,29 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     crate::sentinel::signal_shell_ready(mode_label);
 
     let proxy_sensory = proxy.clone();
-    std::thread::spawn(move || {
+    runtime.spawn(async move {
+        let mut last_mtime = None;
+        let mut interval = std::time::Duration::from_secs(2);
+        let theme_path = crate::browser::storage_bridge::ghost_link_theme();
+
         loop {
-            std::thread::sleep(std::time::Duration::from_secs(2));
-            let _ = proxy_sensory.send_event(UserEvent::SensoryPoll);
+            tokio::time::sleep(interval).await;
+            
+            let current_mtime = std::fs::metadata(&theme_path)
+                .and_then(|m| m.modified())
+                .ok();
+
+            if current_mtime != last_mtime {
+                last_mtime = current_mtime;
+                let _ = proxy_sensory.send_event(UserEvent::SensoryPoll);
+                // Reset to fast polling if something changed
+                interval = std::time::Duration::from_secs(2);
+            } else {
+                // Adaptive slowdown if no changes detected
+                if interval < std::time::Duration::from_secs(10) {
+                    interval += std::time::Duration::from_secs(1);
+                }
+            }
         }
     });
 
@@ -270,18 +320,22 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
         if let Err(e) = compositor::set_content_url(ui, &start_url) {
             diagnostics::log_step(&format!("content frame load warn: {e:#}"));
         }
-        push_tabs_and_bookmarks(ui, &browser, &home_url);
-        push_navigation(ui, &browser);
+        if let Ok(mut b) = browser.lock() {
+            push_tabs_and_bookmarks(ui, &b, &home_url);
+            push_navigation(ui, &b);
+            fire_extensions(&mut b, ui, ExtensionTrigger::DomLoaded);
+        }
         let _ = ui.evaluate_script(
             "if(window.utahOnFrameReady)window.utahOnFrameReady();",
         );
-        fire_extensions(&browser, ui, ExtensionTrigger::DomLoaded);
     } else if let Some(chrome) = shell.chrome.as_ref() {
         if let Err(e) = apply_shell_layout(&window, chrome, shell.content(), initial_mode) {
             diagnostics::log_step(&format!("layout warn: {e:#}"));
         }
-        push_tabs_and_bookmarks(chrome, &browser, &home_url);
-        push_navigation(chrome, &browser);
+        if let Ok(b) = browser.lock() {
+            push_tabs_and_bookmarks(chrome, &b, &home_url);
+            push_navigation(chrome, &b);
+        }
         push_shell_mode(chrome, initial_mode);
     }
 
@@ -294,9 +348,9 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
     let proxy_drain = proxy.clone();
     let browser_drain = browser.clone();
     let prefetch_enabled = state.config.browser.prefetch_enabled;
-    std::thread::spawn(move || {
+    runtime.spawn(async move {
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(1500));
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
             if !prefetch_enabled {
                 continue;
             }
@@ -314,7 +368,6 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
-        // shell moved here - can't clone ui above, remove that line
 
         match &event {
             Event::UserEvent(UserEvent::Ipc(body)) => {
@@ -341,17 +394,20 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
                 }
             }
             Event::UserEvent(UserEvent::SensoryPoll) => {
-                if let Ok(b) = browser_loop.lock() {
+                if let Ok(mut b) = browser_loop.lock() {
                     if let Ok(Some(theme)) = b.ghost.read_theme() {
-                        push_event(
-                            shell.ui(),
-                            IpcEvent::SensoryTheme {
-                                mode: theme.mode,
-                                accent: theme.accent,
-                                contrast: theme.contrast,
-                                audio_rms: theme.audio_rms,
-                            },
-                        );
+                        if b.last_theme.as_ref() != Some(&theme) {
+                            b.last_theme = Some(theme.clone());
+                            push_event(
+                                shell.ui(),
+                                IpcEvent::SensoryTheme {
+                                    mode: theme.mode,
+                                    accent: theme.accent,
+                                    contrast: theme.contrast,
+                                    audio_rms: theme.audio_rms,
+                                },
+                            );
+                        }
                     }
                 }
             }
@@ -409,18 +465,37 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
                     },
                 );
             }
+            Event::UserEvent(UserEvent::TabInactivityCheck) => {
+                if let Ok(mut b) = browser_loop.lock() {
+                    let inactive = b.tabs.get_inactive_tabs(300); // 5 minutes
+                    let mut changed = false;
+                    for id in inactive {
+                        if let Err(e) = b.tabs.suspend_tab(id) {
+                            tracing::error!("Aggressive State Paging: failed to suspend tab {id}: {e:#}");
+                        } else {
+                            changed = true;
+                        }
+                    }
+                    if changed {
+                        push_tabs(shell.ui(), &b, &home_url);
+                    }
+                }
+            }
+            Event::UserEvent(UserEvent::PushEvent(ev)) => {
+                push_event(shell.ui(), ev.clone());
+            }
             Event::UserEvent(UserEvent::PageUrl(url)) => {
                 if let Ok(mut b) = browser_loop.lock() {
                     b.tabs.set_active_url(url.clone());
-                    push_navigation(shell.ui(), &browser_loop);
-                    push_tabs(shell.ui(), &browser_loop, &home_url);
+                    push_navigation(shell.ui(), &b);
+                    push_active_tab_metadata(shell.ui(), &b);
+                    fire_extensions(&mut b, shell.ui(), ExtensionTrigger::Navigation);
                 }
-                fire_extensions(&browser_loop, shell.ui(), ExtensionTrigger::Navigation);
             }
             Event::UserEvent(UserEvent::PageTitle(title)) => {
                 if let Ok(mut b) = browser_loop.lock() {
                     b.tabs.set_active_title(title.clone());
-                    push_tabs(shell.ui(), &browser_loop, &home_url);
+                    push_active_tab_metadata(shell.ui(), &b);
                 }
             }
             Event::WindowEvent {
@@ -458,9 +533,7 @@ fn run_inner(state: Arc<AppState>, runtime: Arc<tokio::runtime::Runtime>) -> Res
             }
             _ => {}
         }
-    });
-
-    Ok(())
+    })
 }
 
 fn boot_legacy_dual(
@@ -468,6 +541,7 @@ fn boot_legacy_dual(
     assets_root: &PathBuf,
     init_script: &str,
     prefetch_buffer: &Arc<Mutex<PrefetchBuffer>>,
+    asset_cache: &AssetCache,
     proxy_nav: &EventLoopProxy<UserEvent>,
     proxy_ipc: &EventLoopProxy<UserEvent>,
     proxy_page: &EventLoopProxy<UserEvent>,
@@ -499,12 +573,14 @@ fn boot_legacy_dual(
 
     let assets = assets_root.clone();
     let buffer = prefetch_buffer.clone();
+    let cache = asset_cache.clone();
     let chrome = WebViewBuilder::new()
         .with_custom_protocol(ASSET_SCHEME.into(), {
             let proxy = proxy_nav.clone();
             let assets = assets.clone();
             let buffer = buffer.clone();
-            move |_id, request| protocol_response(&assets, &buffer, &request, &proxy).into()
+            let cache = cache.clone();
+            move |_id, request| protocol_response(&assets, &buffer, &cache, &request, &proxy).into()
         })
         .with_ipc_handler({
             let proxy = proxy_ipc.clone();
@@ -637,6 +713,7 @@ fn shell_reload(shell: &ShellViews) -> Result<()> {
 pub(crate) fn protocol_response(
     assets: &PathBuf,
     buffer: &Arc<Mutex<PrefetchBuffer>>,
+    cache: &AssetCache,
     request: &Request<Vec<u8>>,
     proxy: &EventLoopProxy<UserEvent>,
 ) -> Response<Cow<'static, [u8]>> {
@@ -661,7 +738,7 @@ pub(crate) fn protocol_response(
                 .unwrap();
         }
     }
-    match serve_asset(assets, request.clone()) {
+    match serve_asset(assets, cache, request.clone()) {
         Ok(r) => r.map(|b| Cow::from(b)),
         Err(e) => Response::builder()
             .header(CONTENT_TYPE, "text/plain")
@@ -724,8 +801,22 @@ fn percent_decode(s: &str) -> String {
     out
 }
 
-pub(crate) fn serve_asset(root: &PathBuf, request: Request<Vec<u8>>) -> Result<Response<Vec<u8>>> {
+pub(crate) fn serve_asset(
+    root: &PathBuf,
+    cache: &AssetCache,
+    request: Request<Vec<u8>>,
+) -> Result<Response<Vec<u8>>> {
     let path = request.uri().path();
+    if let Ok(c) = cache.read() {
+        if let Some((mime, body)) = c.get(path) {
+            return Ok(Response::builder()
+                .header(CONTENT_TYPE, mime)
+                .header("X-Utah-Cache", "HIT")
+                .body(body.clone())
+                .unwrap());
+        }
+    }
+
     let rel = if path == "/" || path.is_empty() {
         "index.html"
     } else {
@@ -742,8 +833,14 @@ pub(crate) fn serve_asset(root: &PathBuf, request: Request<Vec<u8>>) -> Result<R
     let mime = mime_guess::from_path(&canonical)
         .first_or_octet_stream()
         .to_string();
+
+    if let Ok(mut c) = cache.write() {
+        c.insert(path.to_string(), (mime.clone(), content.clone()));
+    }
+
     Ok(Response::builder()
         .header(CONTENT_TYPE, mime)
+        .header("X-Utah-Cache", "MISS")
         .body(content)
         .unwrap())
 }
@@ -759,20 +856,48 @@ fn schedule_prefetch_warm(
 }
 
 fn fire_extensions(
-    browser: &Arc<Mutex<BrowserUi>>,
+    browser: &mut BrowserUi,
     chrome: &WebView,
     trigger: ExtensionTrigger,
 ) {
-    let runs: Vec<(String, Result<i32>)> = browser
-        .lock()
-        .map(|mut b| b.extensions.dispatch(trigger))
-        .unwrap_or_default();
-    for (name, result) in runs {
+    let rs = browser.extensions.dispatch(trigger);
+    let mut js_scripts = Vec::new();
+    for (name, _) in &rs {
+        if let Some(code) = browser.extensions.get_js_code(name) {
+            js_scripts.push(code);
+        }
+    }
+
+    for (name, result) in rs {
         match result {
             Ok(code) => push_event(chrome, IpcEvent::ExtensionRan { name, result: code }),
             Err(e) => push_event(chrome, IpcEvent::Error { message: format!("{e:#}") }),
         }
     }
+    for js in js_scripts {
+        let _ = chrome.evaluate_script(&js);
+    }
+}
+
+async fn run_python(script: &str, args: Vec<&str>) -> Result<String> {
+    let repo = crate::paths::install_root();
+    let script_path = repo.join(script);
+    let py = std::env::var("UTAH_PYTHON").unwrap_or_else(|_| "python".into());
+
+    let output = tokio::process::Command::new(py)
+        .arg(&script_path)
+        .args(args)
+        .current_dir(repo)
+        .output()
+        .await
+        .context("spawn python daemon")?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("Python daemon failed: {err}");
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 async fn handle_ipc(
@@ -799,14 +924,75 @@ async fn handle_ipc(
 
     match req {
         IpcRequest::Navigate { url } => {
-            let url = normalize_url(&url);
-            let mut b = browser.lock().expect("browser lock");
-            let url = b.tabs.navigate_active(url);
-            shell_navigate(shell, &url)?;
-            push_tabs(chrome, browser, home_url);
-            push_navigation(chrome, browser);
-            fire_extensions(browser, chrome, ExtensionTrigger::Navigation);
-            schedule_prefetch_warm(proxy, url.clone(), state.config.browser.prefetch_enabled);
+            let normalized = normalize_url(&url);
+
+            // Sovereign Secure Shield Check
+            {
+                let mut b = browser.lock().expect("browser lock");
+                let (is_blocked, rule, category) = b.shield.inspect_url(&normalized);
+                if is_blocked {
+                    b.shield.log_block(normalized.clone(), rule.clone(), category.clone());
+                    
+                    // Throttle shield updates in navigation too
+                    if b.last_shield_update.elapsed().as_millis() > 500 {
+                        b.last_shield_update = std::time::Instant::now();
+                        push_event(chrome, IpcEvent::ShieldUpdated { metrics: b.shield.get_metrics() });
+                    }
+                    
+                    push_event(chrome, IpcEvent::Error {
+                        message: format!("Shield Blocked Threat: {} ({})", rule, category),
+                    });
+                    if category == "Malware Risk" || category == "Threat Vector" || category == "Scam" {
+                        tracing::warn!("[UTAH_SHIELD] Dropped high-risk navigation: {}", normalized);
+                        return Ok(());
+                    }
+                }
+            }
+
+            // Phase 4: SOTA Onion Routing
+            if normalized.contains(".onion") {
+                tracing::info!("[UTAH_TOR] Routing through SOTA Onion Tunnel...");
+                push_event(chrome, IpcEvent::Error {
+                    message: "Routing through Tor proxy (localhost:9050)...".into()
+                });
+            }
+
+            if normalized.starts_with("http") || normalized.starts_with("utah") || normalized.starts_with("file") {
+                let mut b = browser.lock().expect("browser lock");
+                let url = b.tabs.navigate_active(normalized);
+                shell_navigate(shell, &url)?;
+                push_active_tab_metadata(chrome, &b);
+                push_navigation(chrome, &b);
+                fire_extensions(&mut b, chrome, ExtensionTrigger::Navigation);
+                schedule_prefetch_warm(proxy, url, state.config.browser.prefetch_enabled);
+            } else {
+                // Phase 3: SOTA In-App Search (Local -> P2P) — Offload to background to prevent UI freeze
+                let state = state.clone();
+                let proxy = proxy.clone();
+                let browser = browser.clone();
+                let url = url.to_string();
+                
+                tokio::spawn(async move {
+                    let p2p_search = {
+                        let Ok(b) = browser.lock() else { return; };
+                        b.p2p_search.clone()
+                    };
+                    
+                    let truth = state.truth.read().await;
+                    let (answer, sources) = truth.ask_question(&url).await.unwrap_or_default();
+                    let p2p_hits = p2p_search.query(&url).await.unwrap_or_default();
+                    
+                    if !answer.to_lowercase().contains("don't know") && !answer.is_empty() {
+                        let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::ChatResponse { answer, sources }));
+                        let _ = proxy.send_event(UserEvent::Ipc(r#"{"cmd":"set_shell_mode","mode":"app"}"#.into())); // Placeholder to switch view
+                    } else if let Some(best) = p2p_hits.first() {
+                        let _ = proxy.send_event(UserEvent::DeferredLoad(best.url.clone()));
+                    } else {
+                        let search_url = format!("https://duckduckgo.com/?q={}", urlencoding_light(&url));
+                        let _ = proxy.send_event(UserEvent::DeferredLoad(search_url));
+                    }
+                });
+            }
         }
         IpcRequest::NewTab { url } => {
             let mut b = browser.lock().expect("browser lock");
@@ -817,8 +1003,8 @@ async fn handle_ipc(
                 .active_url()
                 .unwrap_or_else(|| home_url.to_string());
             shell_navigate(shell, &load)?;
-            push_tabs_and_bookmarks(chrome, browser, home_url);
-            push_navigation(chrome, browser);
+            push_tabs_and_bookmarks(chrome, &b, home_url);
+            push_navigation(chrome, &b);
         }
         IpcRequest::CloseTab { tab_id } => {
             let mut b = browser.lock().expect("browser lock");
@@ -834,22 +1020,46 @@ async fn handle_ipc(
             if let Some(load) = b.tabs.active_url() {
                 shell_navigate(shell, &load)?;
             }
-            push_tabs(chrome, browser, home_url);
-            push_navigation(chrome, browser);
+            push_tabs(chrome, &b, home_url);
+            push_navigation(chrome, &b);
         }
         IpcRequest::SwitchTab { tab_id } => {
+            // Aggressive State Paging: capture current tab before switching
+            {
+                let b = browser.lock().expect("browser lock");
+                let active_id = b.tabs.active_id();
+                if active_id != tab_id {
+                    let _ = shell.ui().evaluate_script(&format!(
+                        "if(window.utahCaptureTabState) window.utahCaptureTabState({active_id});"
+                    ));
+                }
+            }
             let mut b = browser.lock().expect("browser lock");
             if let Some(url) = b.tabs.switch_tab(tab_id)? {
                 shell_navigate(shell, &url)?;
-                push_tabs(chrome, browser, home_url);
-                push_navigation(chrome, browser);
+                push_active_tab_changed(chrome, &b);
+                push_navigation(chrome, &b);
             }
         }
         IpcRequest::SuspendTab { tab_id } => {
             let mut b = browser.lock().expect("browser lock");
             b.tabs.suspend_tab(tab_id)?;
             push_event(chrome, IpcEvent::TabSuspended { tab_id });
-            push_tabs(chrome, browser, home_url);
+            push_tab_metadata(chrome, &b, tab_id);
+        }
+        IpcRequest::SaveTabState {
+            tab_id,
+            scroll_x,
+            scroll_y,
+            dom_snapshot,
+        } => {
+            let mut b = browser.lock().expect("browser lock");
+            b.tabs.set_scroll(tab_id, scroll_x, scroll_y);
+            if let Some(dom) = dom_snapshot {
+                if let Some(state) = b.tabs.get_active_mut(tab_id) {
+                    state.dom_snapshot = dom.into_bytes();
+                }
+            }
         }
         IpcRequest::GoBack => shell_back(shell),
         IpcRequest::GoForward => shell_forward(shell),
@@ -859,27 +1069,22 @@ async fn handle_ipc(
             let mut b = browser.lock().expect("browser lock");
             let url = b.tabs.navigate_active(url);
             shell_navigate(shell, &url)?;
-            push_tabs(chrome, browser, home_url);
-            push_navigation(chrome, browser);
+            push_active_tab_metadata(chrome, &b);
+            push_navigation(chrome, &b);
         }
         IpcRequest::SyncBrowser | IpcRequest::ListBookmarks => {
-            if let Ok(b) = browser.lock() {
-                b.clear_stale_urm_overlay();
-            }
-            if let Ok(mut b) = browser.lock() {
-                b.absorb_ghost_prefetch(&state.config);
-            }
-            push_tabs_and_bookmarks(chrome, browser, home_url);
-            push_navigation(chrome, browser);
-            if let Ok(b) = browser.lock() {
-                if !b.prefetch.pending().is_empty() {
-                    push_event(
-                        chrome,
-                        IpcEvent::PrefetchQueued {
-                            urls: b.prefetch.pending(),
-                        },
-                    );
-                }
+            let mut b = browser.lock().expect("browser lock");
+            b.clear_stale_urm_overlay();
+            b.absorb_ghost_prefetch(&state.config);
+            push_tabs_and_bookmarks(chrome, &b, home_url);
+            push_navigation(chrome, &b);
+            if !b.prefetch.pending().is_empty() {
+                push_event(
+                    chrome,
+                    IpcEvent::PrefetchQueued {
+                        urls: b.prefetch.pending(),
+                    },
+                );
             }
         }
         IpcRequest::GetGhostLinkStatus => {
@@ -910,7 +1115,7 @@ async fn handle_ipc(
             url,
             intention,
         } => {
-            let mut b = browser.lock().expect("browser lock");
+            let b = browser.lock().expect("browser lock");
             let url = url
                 .map(|u| normalize_url(&u))
                 .unwrap_or_else(|| {
@@ -920,69 +1125,72 @@ async fn handle_ipc(
                 });
             let title = title.unwrap_or_else(|| {
                 b.tabs
-                    .snapshot()
-                    .0
-                    .into_iter()
-                    .find(|t| t.url == url)
-                    .map(|t| t.title)
+                    .get_title_for_url(&url)
                     .unwrap_or_else(|| url.clone())
             });
             let intention = intention.unwrap_or_else(|| {
                 format!("Intention snapshot: {} ({})", title, url)
             });
             let bm = b.bookmarks.add_local(title, url, intention);
-            let truth = state.truth.read().await;
-            if let Err(e) = b
-                .bookmarks
-                .index_in_qdrant(&bm, truth.ollama(), truth.qdrant())
-                .await
-            {
-                tracing::warn!("semantic bookmark index: {e:#}");
-            }
-            push_bookmarks(chrome, browser);
+            
+            // Offload indexing to background
+            let state = state.clone();
+            let bookmarks = b.bookmarks.clone();
+            tokio::spawn(async move {
+                let truth = state.truth.read().await;
+                if let Err(e) = bookmarks
+                    .index_in_qdrant(&bm, truth.ollama(), truth.qdrant())
+                    .await
+                {
+                    tracing::warn!("semantic bookmark index: {e:#}");
+                }
+            });
+            push_bookmarks(chrome, &b);
         }
         IpcRequest::SearchBookmarks { query } => {
-            let b = browser.lock().expect("browser lock");
-            let truth = state.truth.read().await;
-            let hits = b
-                .bookmarks
-                .search_semantic(&query, truth.ollama(), truth.qdrant(), 12)
-                .await
-                .unwrap_or_default();
-            push_event(
-                chrome,
-                IpcEvent::SpatialBookmarks {
-                    hits: hits
-                        .into_iter()
-                        .map(|h| SpatialBookmarkPayload {
-                            id: h.id,
-                            title: h.title,
-                            url: h.url,
-                            intention: h.intention,
-                            score: h.score,
-                            proximity: h.proximity,
-                        })
-                        .collect(),
-                },
-            );
+            let state = state.clone();
+            let proxy = proxy.clone();
+            let browser = browser.clone();
+            tokio::spawn(async move {
+                let b = {
+                    let Ok(lock) = browser.lock() else { return; };
+                    lock.bookmarks.clone()
+                };
+                let truth = state.truth.read().await;
+                if let Ok(hits) = b.search_semantic(&query, truth.ollama(), truth.qdrant(), 12).await {
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::SpatialBookmarks {
+                        hits: hits
+                            .into_iter()
+                            .map(|h| SpatialBookmarkPayload {
+                                id: h.id,
+                                title: h.title,
+                                url: h.url,
+                                intention: h.intention,
+                                score: h.score,
+                                proximity: h.proximity,
+                            })
+                            .collect(),
+                    }));
+                }
+            });
         }
         IpcRequest::RemoveBookmark { bookmark_id } => {
-            let mut b = browser.lock().expect("browser lock");
+            let b = browser.lock().expect("browser lock");
             b.bookmarks.remove(bookmark_id);
-            push_bookmarks(chrome, browser);
+            push_bookmarks(chrome, &b);
         }
         IpcRequest::VibeExtension { name, intent, trigger } => {
-            let mut b = browser.lock().expect("browser lock");
             let trigger = parse_trigger(trigger.as_deref());
-            match b.extensions.vibe_create(&name, &intent, trigger) {
-                Ok(_) => push_extensions(chrome, browser),
-                Err(e) => {
-                    push_event(chrome, IpcEvent::Error { message: format!("{e:#}") });
-                }
-            }
+            let truth = state.truth.read().await;
+            let mut b = browser.lock().expect("browser lock");
+            // Keep it synchronous for now to avoid Clone issues with ExtensionRuntime
+            // This is a rare operation and unlikely to cause general browser freezes
+            b.extensions.vibe_create(&name, &intent, trigger, truth.ollama()).await?;
+            push_extensions(chrome, &b);
         }
         IpcRequest::ListExtensions => {
-            push_extensions(chrome, browser);
+            let b = browser.lock().expect("browser lock");
+            push_extensions(chrome, &b);
         }
         IpcRequest::RunExtension { name, action } => {
             let mut b = browser.lock().expect("browser lock");
@@ -1025,6 +1233,63 @@ async fn handle_ipc(
                 },
             );
         }
+        IpcRequest::ListEmails => {
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                if let Ok(output) = run_python("flux/email_nexus.py", vec!["--list"]).await {
+                    let emails: Vec<EmailPayload> = serde_json::from_str(&output).unwrap_or_default();
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::EmailsUpdated { emails }));
+                }
+            });
+        }
+        IpcRequest::FetchEmailDetail { id } => {
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                if let Ok(output) = run_python("flux/email_nexus.py", vec!["--fetch", &id]).await {
+                    let detail: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();
+                    let body = detail.get("body").and_then(|v| v.as_str()).unwrap_or("No content").to_string();
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::EmailDetail { body }));
+                }
+            });
+        }
+        IpcRequest::RefactorResume { jd } => {
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                if let Ok(output) = run_python("flux/career_forge.py", vec!["--refactor", &jd]).await {
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::ResumeRefactored { tailored_resume: output }));
+                }
+            });
+        }
+        IpcRequest::GetCareerHistory => {
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                if let Ok(output) = run_python("flux/career_forge.py", vec!["--history"]).await {
+                    let history: Vec<CareerPayload> = serde_json::from_str(&output).unwrap_or_default();
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::CareerHistory { history }));
+                }
+            });
+        }
+        IpcRequest::SubmitApplication { company, title } => {
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                let _ = run_python("flux/career_forge.py", vec!["--submit", "--company", &company, "--title", &title]).await;
+                if let Ok(output) = run_python("flux/career_forge.py", vec!["--history"]).await {
+                    let history: Vec<CareerPayload> = serde_json::from_str(&output).unwrap_or_default();
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::CareerHistory { history }));
+                }
+            });
+        }
+        IpcRequest::ExecutePersonaSwap { target, source } => {
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                if let Ok(output) = run_python("flux/persona_engine/guardian.py", vec!["--swap", "--target", &target, "--source", &source]).await {
+                    let res: serde_json::Value = serde_json::from_str(&output).unwrap_or_default();
+                    let status = res.get("status").and_then(|v| v.as_str()).unwrap_or("ERROR").to_string();
+                    let output_path = res.get("output_path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::PersonaSwapResult { status, output_path }));
+                }
+            });
+        }
         IpcRequest::EnsureServices => {
             match state.truth.read().await.ensure_services().await {
                 Ok(()) => {
@@ -1050,38 +1315,97 @@ async fn handle_ipc(
             }
         }
         IpcRequest::IngestNotebooks => {
-            push_event(
-                chrome,
-                IpcEvent::IngestProgress {
+            let state = state.clone();
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::IngestProgress {
                     message: "Ingesting notebooks…".into(),
                     done: false,
-                },
-            );
-            let bindings = state.bindings.read().await;
-            let count = state
-                .truth
-                .write()
-                .await
-                .ingest_notebooks(&bindings)
-                .await?;
+                }));
+                let bindings = state.bindings.read().await;
+                if let Ok(count) = state.truth.write().await.ingest_notebooks(&bindings).await {
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::IngestProgress {
+                        message: format!("Indexed {count} chunks."),
+                        done: true,
+                    }));
+                }
+            });
+        }
+        IpcRequest::VerifyText { text } => {
+            let state = state.clone();
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                let result = if text.contains('<') && text.contains('>') {
+                    truth_guard::verify_content_integrity(&state, &text).await
+                } else {
+                    state.truth.read().await.verify_text(&text).await
+                };
+                if let Ok(res) = result {
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::VerifyResult(truth_guard::payload_from_result(res))));
+                }
+            });
+        }
+        IpcRequest::ChatQuery { query } => {
+            let state = state.clone();
+            let proxy = proxy.clone();
+            tokio::spawn(async move {
+                let truth = state.truth.read().await;
+                if let Ok((answer, sources)) = truth.ask_question(&query).await {
+                    let _ = proxy.send_event(UserEvent::PushEvent(IpcEvent::ChatResponse { answer, sources }));
+                }
+            });
+        }
+        IpcRequest::QuantumQuery { problem_key, sync } => {
+            let resp = state.quantum.query(&problem_key);
+            if sync {
+                tracing::info!("[UTAH_QUANTUM] Reifying logic path: {}", problem_key);
+            }
             push_event(
                 chrome,
-                IpcEvent::IngestProgress {
-                    message: format!("Indexed {count} chunks."),
-                    done: true,
+                IpcEvent::QuantumOracleResponse {
+                    problem_key,
+                    logic_payload: resp.logic_payload,
+                    status: resp.status,
+                    verification_checksum: resp.verification_checksum,
                 },
             );
         }
-        IpcRequest::VerifyText { text } => {
-            let result = if text.contains('<') && text.contains('>') {
-                truth_guard::verify_content_integrity(state, &text).await?
-            } else {
-                state.truth.read().await.verify_text(&text).await?
-            };
+        IpcRequest::GetQuantumState => {
+            let s = state.quantum.get_state();
             push_event(
                 chrome,
-                IpcEvent::VerifyResult(truth_guard::payload_from_result(result)),
+                IpcEvent::QuantumStateUpdated {
+                    state: crate::ipc::QuantumStatePayload {
+                        entropy: s.entropy,
+                        timeline: s.timeline,
+                        anchor_stable: s.anchor_stable,
+                    },
+                },
             );
+        }
+        IpcRequest::GetShieldMetrics => {
+            let b = browser.lock().expect("browser lock");
+            push_event(chrome, IpcEvent::ShieldUpdated { metrics: b.shield.get_metrics() });
+        }
+        IpcRequest::ReportShieldBlock { url, category } => {
+            let mut b = browser.lock().expect("browser lock");
+            b.shield.log_block(url, "Geometric Heuristic".into(), category);
+            // Throttle UI updates to 2Hz to prevent IPC congestion
+            if b.last_shield_update.elapsed().as_millis() > 500 {
+                b.last_shield_update = std::time::Instant::now();
+                push_event(chrome, IpcEvent::ShieldUpdated { metrics: b.shield.get_metrics() });
+            }
+        }
+        IpcRequest::GhostLinkIncognito { enabled } => {
+            if enabled {
+                tracing::info!("[UTAH_VOID] Entering Absolute Void-State...");
+                let void_dir = crate::paths::sovereign_data_root().join("void_vault");
+                let _ = std::fs::create_dir_all(&void_dir);
+            } else {
+                tracing::info!("[UTAH_VOID] Exiting Void-State. Wiping volatile data...");
+                let void_dir = crate::paths::sovereign_data_root().join("void_vault");
+                let _ = crate::paths::zero_fill_dir(&void_dir);
+            }
         }
         IpcRequest::VerifyActiveTab => {
             push_event(
@@ -1481,7 +1805,7 @@ fn normalize_url(input: &str) -> String {
         format!("https://{trimmed}")
     } else {
         format!(
-            "https://www.google.com/search?q={}",
+            "https://duckduckgo.com/?q={}",
             urlencoding_light(trimmed)
         )
     }
@@ -1514,75 +1838,97 @@ fn push_memory_anchors(chrome: &WebView, browser: &BrowserUi) {
     push_event(chrome, IpcEvent::MemoryAnchorsUpdated { anchors });
 }
 
-fn push_tabs(chrome: &WebView, browser: &Arc<Mutex<BrowserUi>>, home_url: &str) {
-    if let Ok(b) = browser.lock() {
-        let (tabs, active_id) = b.tabs.snapshot();
+fn push_tabs(chrome: &WebView, browser: &BrowserUi, home_url: &str) {
+    let (tabs, active_id) = browser.tabs.snapshot();
+    push_event(
+        chrome,
+        IpcEvent::TabsUpdated {
+            tabs: tabs
+                .into_iter()
+                .map(|t| TabPayload {
+                    id: t.id,
+                    title: t.title,
+                    url: t.url,
+                    suspended: t.suspended,
+                })
+                .collect(),
+            active_id,
+            home_url: home_url.to_string(),
+        },
+    );
+}
+
+fn push_active_tab_metadata(chrome: &WebView, browser: &BrowserUi) {
+    push_tab_metadata(chrome, browser, browser.tabs.active_id());
+}
+
+fn push_tab_metadata(chrome: &WebView, browser: &BrowserUi, tab_id: u32) {
+    let (tabs, _) = browser.tabs.snapshot();
+    if let Some(tab) = tabs.into_iter().find(|t| t.id == tab_id) {
         push_event(
             chrome,
-            IpcEvent::TabsUpdated {
-                tabs: tabs
-                    .into_iter()
-                    .map(|t| TabPayload {
-                        id: t.id,
-                        title: t.title,
-                        url: t.url,
-                        suspended: t.suspended,
-                    })
-                    .collect(),
-                active_id,
-                home_url: home_url.to_string(),
+            IpcEvent::TabMetadataUpdated {
+                tab: TabPayload {
+                    id: tab.id,
+                    title: tab.title,
+                    url: tab.url,
+                    suspended: tab.suspended,
+                },
             },
         );
     }
 }
 
-fn push_navigation(chrome: &WebView, browser: &Arc<Mutex<BrowserUi>>) {
-    if let Ok(b) = browser.lock() {
-        let (tabs, active_id) = b.tabs.snapshot();
-        if let Some(tab) = tabs.into_iter().find(|t| t.id == active_id) {
-            push_event(
-                chrome,
-                IpcEvent::NavigationChanged {
-                    tab_id: tab.id,
-                    url: tab.url,
-                    title: tab.title,
-                },
-            );
-        }
+fn push_active_tab_changed(chrome: &WebView, browser: &BrowserUi) {
+    push_event(
+        chrome,
+        IpcEvent::ActiveTabChanged {
+            active_id: browser.tabs.active_id(),
+        },
+    );
+}
+
+fn push_navigation(chrome: &WebView, browser: &BrowserUi) {
+    let (tabs, active_id) = browser.tabs.snapshot();
+    if let Some(tab) = tabs.into_iter().find(|t| t.id == active_id) {
+        push_event(
+            chrome,
+            IpcEvent::NavigationChanged {
+                tab_id: tab.id,
+                url: tab.url,
+                title: tab.title,
+            },
+        );
     }
 }
 
-fn push_bookmarks(chrome: &WebView, browser: &Arc<Mutex<BrowserUi>>) {
-    if let Ok(b) = browser.lock() {
-        let bookmarks: Vec<BookmarkPayload> = b
-            .bookmarks
-            .list()
-            .iter()
-            .map(|bm| BookmarkPayload {
-                id: bm.id,
-                title: bm.title.clone(),
-                url: bm.url.clone(),
-                intention: bm.intention.clone(),
-                proximity: bm.proximity,
+fn push_bookmarks(chrome: &WebView, browser: &BrowserUi) {
+    let bookmarks: Vec<BookmarkPayload> = browser
+        .bookmarks
+        .list()
+        .iter()
+        .map(|bm| BookmarkPayload {
+            id: bm.id,
+            title: bm.title.clone(),
+            url: bm.url.clone(),
+            intention: bm.intention.clone(),
+            proximity: bm.proximity,
+        })
+        .collect();
+    push_event(chrome, IpcEvent::BookmarksUpdated { bookmarks });
+}
+
+fn push_extensions(chrome: &WebView, browser: &BrowserUi) {
+    if let Ok(list) = browser.extensions.list_manifests() {
+        let extensions: Vec<ExtensionPayload> = list
+            .into_iter()
+            .map(|e| ExtensionPayload {
+                name: e.name,
+                trigger: e.trigger,
+                intent: e.intent,
             })
             .collect();
-        push_event(chrome, IpcEvent::BookmarksUpdated { bookmarks });
-    }
-}
-
-fn push_extensions(chrome: &WebView, browser: &Arc<Mutex<BrowserUi>>) {
-    if let Ok(b) = browser.lock() {
-        if let Ok(list) = b.extensions.list_manifests() {
-            let extensions: Vec<ExtensionPayload> = list
-                .into_iter()
-                .map(|e| ExtensionPayload {
-                    name: e.name,
-                    trigger: e.trigger,
-                    intent: e.intent,
-                })
-                .collect();
-            push_event(chrome, IpcEvent::ExtensionsUpdated { extensions });
-        }
+        push_event(chrome, IpcEvent::ExtensionsUpdated { extensions });
     }
 }
 
@@ -1594,7 +1940,7 @@ fn parse_trigger(raw: Option<&str>) -> ExtensionTrigger {
     }
 }
 
-fn push_tabs_and_bookmarks(chrome: &WebView, browser: &Arc<Mutex<BrowserUi>>, home_url: &str) {
+fn push_tabs_and_bookmarks(chrome: &WebView, browser: &BrowserUi, home_url: &str) {
     push_tabs(chrome, browser, home_url);
     push_bookmarks(chrome, browser);
 }

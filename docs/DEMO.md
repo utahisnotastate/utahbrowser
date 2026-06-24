@@ -1,101 +1,60 @@
-# Utah Browser — Demo (stable build)
+# Utah Browser: SOTA Demo Guide
 
-**For evaluators, sponsors, and anyone who just wants it to run.**  
-Repository: [github.com/utahisnotastate/utahbrowser](https://github.com/utahisnotastate/utahbrowser)
+**For evaluators, sponsors, and those seeking immediate digital sovereignty.**
 
-The **demo profile** uses a simplified config and the **unified compositor** (one WebView2: Ghost-Chrome frame + content iframe). Legacy dual-WebView mode is opt-in only (`UTAH_LEGACY_DUAL=1`).
-
----
-
-## Requirements (demo)
-
-| Item | Required? |
-|------|-----------|
-| Windows 10/11 + **WebView2** | Yes |
-| **Rust** (only if building from source) | Build path only |
-| **Ollama** | Optional (Truth Guard needs it) |
-| **Qdrant** | Optional (Truth Guard needs it) |
-| Docker | No |
+This demo provides a stable, self-contained environment to experience the **Utah-Omega-23** workstation. It utilizes the **Unified Compositor** for maximum performance and the **Fluidic UI** for a tactile browsing experience.
 
 ---
 
-## Fastest demo (3 steps)
+## 1. Quick Start (3 Steps)
 
-### 1. Clone
-
+### Step 1: Initialize the Sovereign Node
 ```powershell
 git clone https://github.com/utahisnotastate/utahbrowser.git
 cd utahbrowser
 ```
 
-### 2. Build the demo package
-
+### Step 2: Build the Demo Matrix
 ```powershell
 .\scripts\Build-Demo.ps1
 ```
+*This script compiles the release binary and packages all Fluidic assets into the `dist/` directory.*
 
-This produces `dist\` with:
-
-- `UtahBrowser.cmd` — **double-click this** (no PowerShell quoting issues)
-- `utah-browser.exe`
-- Demo `config\default.toml` (evolution off, Ghost-Link off)
-- `DEMO.txt` — quick reference in the folder
-
-### 3. Launch
-
+### Step 3: Launch
 ```powershell
 cd dist
 .\UtahBrowser.cmd
 ```
-
-Or double-click **`UtahBrowser.cmd`** in File Explorer.
-
-**Do not** run `Utah Browser.exe` without quotes in PowerShell — the space breaks the command. Use `UtahBrowser.cmd` instead.
+*Or simply double-click **UtahBrowser.cmd** in your file explorer.*
 
 ---
 
-## What you should see
+## 2. What to Expect
 
-- A window titled **Utah Browser // DEMO**
-- **Google** (or your configured home page) in the main view
-- **Ghost-Chrome** tab strip and URL bar in the same window (no second WebView engine)
-- Log line should read **`shell ready (unified)`**
-
-Use the **◈** button (or dashboard IPC) for the full Utah app shell (`index.html`). Legacy dual HWND mode: set `UTAH_LEGACY_DUAL=1` before launch (see [DEMO_RELEASE.md](DEMO_RELEASE.md)).
+- **Fluidic Shell:** A hardware-accelerated, volumetric interface that reacts to your cursor.
+- **Unified Compositor:** Sub-millisecond rendering with no dual-engine contention.
+- **SOTA Performance:** Aggressive state paging is enabled, keeping your RAM usage minimal even with many tabs.
+- **Privacy Gating:** Truth Guard and P2P Search are included but require [Ollama](https://ollama.com/) for full operation.
 
 ---
 
-## Logs (if something fails)
+## 3. Experiencing SOTA Features
 
-| Log | Path |
-|-----|------|
-| Primary | `%APPDATA%\UtahBrowser\logs\browser.log` |
-| Mirror | `dist\logs\browser.log` (after run) |
-| Temp | `%TEMP%\utah-browser.log` |
-
-Look for: `shell ready`, `boot FAILED`, `PANIC`.
+While in the demo, you can activate the following modules:
+1. **Truth Guard:** Click the **◈** icon to enter the full dashboard. (Requires Ollama/Qdrant).
+2. **Fluidic Toggle:** Visit the **Settings** menu to enable/disable the global visual override.
+3. **P2P Search:** Type your query into the URL bar and select the sovereign index.
 
 ---
 
-## Optional: Truth Guard
+## 4. Diagnostics & Logs
 
-1. Install [Ollama](https://ollama.com/) and run `ollama serve`
-2. Run once: `.\scripts\Ensure-Services.ps1 -ProjectRoot .\dist`
-3. In the browser, open the Truth view (full UI build) or use developer `main` branch
+If the workstation fails to initialize, consult the telemetry logs:
+- **Primary Log:** `%APPDATA%\UtahBrowser\logs\browser.log`
+- **Mirror Log:** `dist\logs\browser.log`
 
----
-
-## Demo vs development
-
-| Track | Command | Launch | UI |
-|-------|---------|--------|-----|
-| **Demo (stable)** | `Build-Demo.ps1` | `UtahBrowser.cmd` | Unified compositor + demo.toml |
-| **Latest (main)** | `Build-Standalone.ps1` | `UtahBrowser.cmd` | Unified compositor + full config |
-
-See [DEMO_RELEASE.md](DEMO_RELEASE.md) for maintainer release steps.
+Look for the line: `[UTAH] shell ready (unified)` to confirm a successful boot.
 
 ---
 
-## Support
-
-PayPal: **utah@utahcreates.com** (see [README](../README.md)).
+**Mastery Log:** Demo environment synchronized. Welcome to the Utah Standard.

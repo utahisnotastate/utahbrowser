@@ -52,11 +52,20 @@ fn spawn_ensure_qdrant_script() -> Result<()> {
     Ok(())
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static QDRANT_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
 /// Ping Qdrant, auto-start via PowerShell on Windows if needed, then ensure collection exists.
 pub async fn ensure_qdrant_ready(config: &AppConfig, qdrant: &QdrantClient) -> Result<()> {
+    if QDRANT_INITIALIZED.load(Ordering::Relaxed) {
+        return Ok(());
+    }
+
     for attempt in 0..4 {
         if qdrant.ping().await.unwrap_or(false) {
             qdrant.ensure_collection().await?;
+            QDRANT_INITIALIZED.store(true, Ordering::Relaxed);
             return Ok(());
         }
 

@@ -1,5 +1,6 @@
 //! Semantic bookmark map — local JSON index + Qdrant intention vectors.
 
+use std::sync::{Arc, Mutex};
 use crate::browser::storage_bridge;
 use crate::config::AppConfig;
 use crate::truth::ollama::OllamaClient;
@@ -35,10 +36,10 @@ pub struct SemanticHit {
 }
 
 /// Bookmarks as intention snapshots in the spatial knowledge graph.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SemanticBookmarkStore {
     path: std::path::PathBuf,
-    data: BookmarkFile,
+    data: Arc<Mutex<BookmarkFile>>,
     collection: String,
 }
 
@@ -56,18 +57,19 @@ impl SemanticBookmarkStore {
         };
         Ok(Self {
             path,
-            data,
+            data: Arc::new(Mutex::new(data)),
             collection: config.browser.bookmarks_collection.clone(),
         })
     }
 
-    pub fn list(&self) -> &[Bookmark] {
-        &self.data.items
+    pub fn list(&self) -> Vec<Bookmark> {
+        self.data.lock().map(|d| d.items.clone()).unwrap_or_default()
     }
 
-    pub fn add_local(&mut self, title: String, url: String, intention: String) -> Bookmark {
-        let id = self.data.next_id;
-        self.data.next_id += 1;
+    pub fn add_local(&self, title: String, url: String, intention: String) -> Bookmark {
+        let mut data = self.data.lock().expect("bookmarks lock");
+        let id = data.next_id;
+        data.next_id += 1;
         let title = if title.trim().is_empty() {
             url.clone()
         } else {
@@ -78,7 +80,7 @@ impl SemanticBookmarkStore {
         } else {
             intention
         };
-        let proximity = proximity_for_count(self.data.items.len());
+        let proximity = proximity_for_count(data.items.len());
         let bm = Bookmark {
             id,
             title,
@@ -86,9 +88,22 @@ impl SemanticBookmarkStore {
             intention,
             proximity,
         };
-        self.data.items.push(bm.clone());
-        let _ = self.save();
+        data.items.push(bm.clone());
+        let _ = self.save_locked(&data);
         bm
+    }
+
+    fn save_locked(&self, data: &BookmarkFile) -> Result<()> {
+        let raw = serde_json::to_string_pretty(data)?;
+        fs::write(&self.path, raw)?;
+        Ok(())
+    }
+
+    pub fn remove(&self, id: u32) {
+        if let Ok(mut data) = self.data.lock() {
+            data.items.retain(|b| b.id != id);
+            let _ = self.save_locked(&data);
+        }
     }
 
     pub async fn index_in_qdrant(
@@ -144,9 +159,8 @@ impl SemanticBookmarkStore {
 
     fn fallback_search(&self, query: &str) -> Vec<SemanticHit> {
         let q = query.to_lowercase();
-        self
-            .data
-            .items
+        let Ok(data) = self.data.lock() else { return Vec::new(); };
+        data.items
             .iter()
             .filter(|b| {
                 b.title.to_lowercase().contains(&q)
@@ -162,26 +176,6 @@ impl SemanticBookmarkStore {
                 proximity: b.proximity,
             })
             .collect()
-    }
-
-    pub fn remove(&mut self, id: u32) -> bool {
-        let before = self.data.items.len();
-        self.data.items.retain(|b| b.id != id);
-        if self.data.items.len() != before {
-            let _ = self.save();
-            true
-        } else {
-            false
-        }
-    }
-
-    fn save(&self) -> Result<()> {
-        if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let raw = serde_json::to_string_pretty(&self.data)?;
-        fs::write(&self.path, raw)?;
-        Ok(())
     }
 }
 

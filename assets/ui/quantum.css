@@ -1,0 +1,80 @@
+/**
+ * Quantum Nexus styling — high-fidelity SOTA UI.
+ */
+
+.panel-quantum {
+  padding: var(--utah-space-lg);
+}
+
+.quantum-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: var(--utah-space-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .quantum-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quantum-oracle-card {
+  min-height: 400px;
+}
+
+.quantum-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--utah-space-md);
+  margin: var(--utah-space-lg) 0;
+}
+
+.quantum-form input {
+  width: 100%;
+  padding: var(--utah-space-md);
+  background: #0a1018;
+  border: 1px solid var(--utah-border);
+  border-radius: var(--utah-radius);
+  color: var(--utah-text);
+  font: inherit;
+  font-size: var(--utah-font-lg);
+}
+
+.quantum-result {
+  margin-top: var(--utah-space-lg);
+  padding: var(--utah-space-md);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--utah-radius);
+  font-family: monospace;
+  white-space: pre-wrap;
+  min-height: 100px;
+  border-left: 3px solid var(--utah-accent);
+}
+
+.quantum-stats {
+  list-style: none;
+  padding: 0;
+  margin: var(--utah-space-md) 0;
+}
+
+.quantum-stats li {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--utah-space-xs) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.quantum-stats li span {
+  color: var(--utah-muted);
+}
+
+.quantum-stats li strong {
+  color: var(--utah-accent);
+}
+
+.logic-payload {
+  color: #4ade80;
+  font-weight: bold;
+}

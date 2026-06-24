@@ -62,5 +62,49 @@
 
   window.utahOnFrameReady = function () {
     if (window.utahSend) window.utahSend({ cmd: 'sync_browser' });
+    
+    // Phase 2: Sovereign History Oracle — auto-ingest page content
+    var f = frame();
+    setTimeout(function () {
+      try {
+        if (f && f.contentWindow && f.contentWindow.location.href !== 'about:blank') {
+          var url = f.contentWindow.location.href;
+          var text = f.contentWindow.document.body.innerText;
+          if (text && text.length > 50 && window.utahSend) {
+            window.utahSend({
+              cmd: 'inject_context',
+              source: 'web_history',
+              label: url,
+              text: text
+            });
+          }
+        }
+      } catch (e) {}
+    }, 2500);
+  };
+
+  window.utahCaptureTabState = function (tabId) {
+    var f = frame();
+    var scrollX = 0;
+    var scrollY = 0;
+    var dom = null;
+    try {
+      if (f && f.contentWindow) {
+        scrollX = f.contentWindow.scrollX || 0;
+        scrollY = f.contentWindow.scrollY || 0;
+        try {
+          dom = f.contentWindow.document.documentElement.innerHTML;
+        } catch (e) {}
+      }
+    } catch (e) {}
+    if (window.utahSend) {
+      window.utahSend({
+        cmd: 'save_tab_state',
+        tab_id: tabId,
+        scroll_x: scrollX,
+        scroll_y: scrollY,
+        dom_snapshot: dom
+      });
+    }
   };
 })();

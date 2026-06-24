@@ -58,13 +58,20 @@ pub async fn warm_url(
         .unwrap_or("application/octet-stream")
         .to_string();
 
-    let bytes = resp.bytes().await.context("prefetch body")?;
-    let body = bytes.as_ref();
-    let body = if body.len() > MAX_FETCH_BYTES {
-        &body[..MAX_FETCH_BYTES]
-    } else {
-        body
-    };
+    use futures_util::StreamExt;
+    let mut bytes = Vec::with_capacity(MAX_FETCH_BYTES);
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context("prefetch chunk")?;
+        let remaining = MAX_FETCH_BYTES - bytes.len();
+        if chunk.len() >= remaining {
+            bytes.extend_from_slice(&chunk[..remaining]);
+            break;
+        } else {
+            bytes.extend_from_slice(&chunk);
+        }
+    }
+    let body = &bytes;
 
     if !status.is_success() && status.as_u16() != 206 {
         anyhow::bail!("prefetch HTTP {}", status);

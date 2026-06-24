@@ -2,11 +2,11 @@
 
 use crate::browser::storage_bridge;
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GhostPrefetchHint {
     pub ts: Option<String>,
     pub prefetch: Option<bool>,
@@ -14,7 +14,7 @@ pub struct GhostPrefetchHint {
     pub suggested_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct SensoryTheme {
     pub mode: String,
     pub accent: String,
@@ -23,7 +23,7 @@ pub struct SensoryTheme {
     pub audio_rms: f32,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GhostEvent {
     pub ts: String,
     pub trigger: String,
@@ -88,10 +88,28 @@ impl GhostLinkBridge {
         if !self.events_path.is_file() {
             return Ok(Vec::new());
         }
-        let raw = fs::read_to_string(&self.events_path)?;
-        let lines: Vec<&str> = raw.lines().rev().take(max).collect();
+        let file = fs::File::open(&self.events_path)?;
+        let len = file.metadata()?.len();
+
+        // 32KB buffer for tailing — avoid reading gigabytes of JSONL
+        let buf_size = 32768;
+        let offset = len.saturating_sub(buf_size as u64);
+
+        use std::io::{Read, Seek, SeekFrom};
+        let mut f = file;
+        f.seek(SeekFrom::Start(offset))?;
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf)?;
+
+        let content = String::from_utf8_lossy(&buf);
+        // If we're not at the start, the first line is likely partial.
+        let mut lines: Vec<&str> = content.lines().collect();
+        if offset > 0 && !lines.is_empty() {
+            lines.remove(0);
+        }
+
         let mut events = Vec::new();
-        for line in lines.into_iter().rev() {
+        for line in lines.iter().rev().take(max).rev() {
             if let Ok(ev) = serde_json::from_str::<GhostEvent>(line) {
                 events.push(ev);
             }

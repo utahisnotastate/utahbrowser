@@ -24,6 +24,7 @@ max_context_chunks = 6
 
 [audio]
 enabled = false
+sample_rate_hint = 16000
 
 [evolution]
 enabled = false
@@ -32,7 +33,7 @@ debounce_ms = 5000
 proposals_dir = "evolution/proposals"
 
 [ui]
-start_url = "https://www.google.com"
+start_url = "https://www.cia.gov"
 window_title = "Utah Browser // DEMO"
 
 [browser]
@@ -43,6 +44,12 @@ prefetch_buffer_max_mb = 4
 
 [ghost_link]
 enabled = false
+entropy_threshold = 0.12
+frame_interval_ms = 500
+buffer_seconds = 5.0
+vision_model = "llava"
 
 [urm]
 enabled = false
+poll_hz = 10.0
+snapshot_interval_sec = 60.0
