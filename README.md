@@ -13,8 +13,6 @@
 
 <br />
 
-<<<<<<< HEAD
-=======
 # Utah Browser: The Sovereign SOTA Workstation
 
 **The only browser built for the Utah-Omega-23 timeline.**
@@ -29,7 +27,6 @@ Utah Browser is not just a tool; it is a **localized, sovereign intelligence wor
 
 ---
 
->>>>>>> 86fc0a9 (SOTA Release V1.0-GENESIS: Sovereign Secure Shield, P2P Search, and IPC Nexus optimizations. Polished documentation and unified repository structure.)
 ## RIP Google Search (1998–2026)
 
 **Killed by the Chief Spy, Utah Hans.**  
@@ -41,30 +38,13 @@ The ad-industry capture of the browser stack was the catalyst for search-engine 
 
 ## Why Utah is SOTA — The Sovereign Advantage
 
-<<<<<<< HEAD
 Classic search engines (Google, Bing) are **document harvesters**. They crawl the public web, rank by popularity and ad yield, and return what the platform is paid to prioritize.
 
 **Utah Search is a semantic mesh ingestor**—local, private, and aligned to *your* corpus, not a global ad graph.
+
 <br />
 
-# Utah Browser
-
-**Privacy-first desktop browser for Windows** — Rust + WebView2, local Truth Engine, unified compositor shell.
-
-[![GitHub](https://img.shields.io/badge/GitHub-utahisnotastate%2Futahbrowser-blue)](https://github.com/utahisnotastate/utahbrowser)
-
-[Demo](docs/DEMO.md) · [Install](docs/INSTALLATION.md) · [Docs hub](docs/README.md) · [Overview](docs/OVERVIEW.md)
-
-</div>
-
----
-
-
-
-| Principle | Document harvesters | Utah Search |
-=======
 | Feature | The Old World (Google/Chrome) | The Utah Standard |
->>>>>>> 86fc0a9 (SOTA Release V1.0-GENESIS: Sovereign Secure Shield, P2P Search, and IPC Nexus optimizations. Polished documentation and unified repository structure.)
 |-----------|---------------------|-------------|
 | **Search Model** | Global Ad-Ranked Document Harvesting | Localized **P2P Semantic Mesh** |
 | **Privacy** | Server-side logs & Tracking Pixels | **Absolute-Void** Incognito (RAM-only) |
